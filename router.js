@@ -1,0 +1,65 @@
+const AIRouter = {
+    /**
+     * Determines routing decision based on query text and context
+     * @param {string} query The user input message
+     * @param {boolean} hasFiles Whether file attachments are present
+     * @returns {Object} Routing decision containing provider, model, and metadata
+     */
+    route: function(query, hasFiles = false) {
+        const lower = query.toLowerCase();
+
+        // 1. COMPLEX LOGIC, MATH, & PYTHON REASONING
+        const reasoningKeywords = ['math', 'calculate', 'solve', 'equation', 'algebra', 'calculus', 'geometry', 'proof', 'physics', 'logic', 'reasoning', 'why does', 'explain the mechanism', 'recursion', 'binary search', 'algorithm', 'data structure', 'complexity', 'debugging multi-step'];
+        const isReasoning = reasoningKeywords.some(kw => lower.includes(kw));
+
+        // 2. LARGE CONTEXT & CODEBASES
+        const largeContextKeywords = ['log', 'error log', 'codebase', 'repository', 'file content', 'review this codebase', 'analyze these logs', 'logs', 'huge file', 'read file'];
+        const isLargeContext = hasFiles || largeContextKeywords.some(kw => lower.includes(kw)) || query.length > 5000;
+
+        // 3. STANDARD APPS & FRONTEND/BACKEND DEVELOPMENT
+        const webDevKeywords = ['html', 'css', 'javascript', 'react', 'vue', 'frontend', 'backend', 'web page', 'button', 'input', 'style', 'flexbox', 'div', 'api route', 'express', 'node', 'django', 'flask', 'sql table', 'database query', 'code', 'write a loop', 'boilerplate', 'refactor'];
+        const isWebDev = webDevKeywords.some(kw => lower.includes(kw));
+
+        if (isReasoning) {
+            return {
+                provider: 'nvidia',
+                model: 'deepseek-ai/deepseek-r1',
+                requires_python_env: true,
+                reason: 'Requires deep cognitive reasoning and a programmatic environment for calculation.'
+            };
+        } else if (isLargeContext) {
+            return {
+                provider: 'gemini',
+                model: 'gemini-3.6-flash',
+                requires_python_env: false,
+                reason: 'Requires massive context window memory to ingest the codebase.'
+            };
+        } else if (isWebDev) {
+            return {
+                provider: 'nvidia',
+                model: 'qwen/qwen-2.5-coder-32b',
+                requires_python_env: false,
+                reason: 'Optimized specifically for syntax generation and standard web architecture.'
+            };
+        } else {
+            // 4. INSTANT SPEED & CHAT (Generic)
+            return {
+                provider: 'groq',
+                model: 'openai/gpt-oss-120b',
+                requires_python_env: false,
+                reason: 'Provides ultra-low latency execution speeds using the latest open flagship model on Groq LPUs.'
+            };
+        }
+    },
+
+    /**
+     * Executes the routing logic and outputs a JSON string
+     * @param {string} query The user input message
+     * @param {boolean} hasFiles Whether file attachments are present
+     * @returns {string} JSON-stringified routing decision
+     */
+    routeJSON: function(query, hasFiles = false) {
+        const decision = this.route(query, hasFiles);
+        return JSON.stringify(decision);
+    }
+};

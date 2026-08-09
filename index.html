@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Sign up</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="icon.jpg">
+    <!-- Google Fonts: Playfair Display (Serif) and Poppins (Sans-serif) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="login-view">
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <span class="toast-icon"><i class="fas fa-check-circle"></i></span>
+        <span id="toast-message" class="toast-message">Success!</span>
+    </div>
+
+    <!-- 1. LOGIN SECTION -->
+    <div class="login-section" id="login-section">
+        <!-- Main sliding container -->
+        <div class="container" id="container">
+            
+            <!-- SIGN UP PANEL (Revealed on Right when sliding overlay moves Left) -->
+            <div class="form-container sign-up-container">
+                <button type="button" class="tab-btn" id="signInBtn"><i class="fas fa-arrow-left"></i> SIGN IN</button>
+                <form id="signup-form">
+                    <div class="form-header">
+                        <img src="icon.jpg" alt="Logo" class="mini-logo">
+                    </div>
+                    <h1>Sign up</h1>
+                    <p class="subtext">Welcome! Create an account here before you can write in the forum with others and exchange views.</p>
+                    
+                    <div class="input-field">
+                        <input type="text" id="signup-name" required placeholder=" ">
+                        <label>NAME</label>
+                    </div>
+                    <div class="input-field">
+                        <input type="email" id="signup-email" required placeholder=" ">
+                        <label>GMAIL</label>
+                    </div>
+                    <div class="input-field">
+                        <input type="password" id="signup-password" required placeholder=" ">
+                        <label>PASSWORD</label>
+                    </div>
+                    <!-- Password Strength Indicator -->
+                    <div class="password-strength-container hidden" id="strength-container">
+                        <div class="strength-bar-wrapper">
+                            <div class="strength-bar" id="strength-bar"></div>
+                        </div>
+                        <span class="strength-text" id="strength-text">Weak</span>
+                    </div>
+                    
+                    <button type="submit" class="btn">SIGN UP</button>
+                </form>
+            </div>
+
+            <!-- LOGIN PANEL (Visible on Left by default) -->
+            <div class="form-container sign-in-container">
+                <button type="button" class="tab-btn" id="signUpBtn">SIGN UP <i class="fas fa-arrow-right"></i></button>
+                <form id="login-form">
+                    <div class="form-header">
+                        <img src="icon.jpg" alt="Logo" class="mini-logo">
+                    </div>
+                    <h1>Login</h1>
+                    <p class="subtext">Enter your details to log in to your account.</p>
+                    
+                    <div class="input-field">
+                        <input type="email" id="login-email" required placeholder=" ">
+                        <label>GMAIL</label>
+                    </div>
+                    <div class="input-field">
+                        <input type="password" id="login-password" required placeholder=" ">
+                        <label>PASSWORD</label>
+                    </div>
+                    
+                    <div class="helper-row">
+                        <a href="#" class="forgot-link">Forgot your password?</a>
+                    </div>
+                    
+                    <button type="submit" class="btn">LOGIN</button>
+                </form>
+            </div>
+
+            <!-- OVERLAY CONTAINER (Sliding Panel with Leaf Background) -->
+            <div class="overlay-container">
+                <div class="overlay">
+                    <!-- Sits on Login state (image is on the right, clicking triggers switch to Sign Up) -->
+                    <div class="overlay-panel overlay-right"></div>
+                    <!-- Sits on Sign Up state (image is on the left, clicking triggers switch to Login) -->
+                    <div class="overlay-panel overlay-left"></div>
+                </div>
+            </div>
+
+
+
+        </div>
+    </div>
+
+    <!-- 2. CHAT SECTION (Initially hidden, revealed on successful login) -->
+    <div class="chat-section hidden" id="chat-section">
+        
+        <!-- 1. Left/Right Collapsible Sidebar (On the Left) -->
+        <div class="sidebar collapsed" id="sidebar">
+            <div class="sidebar-header">
+                <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Toggle Sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <img src="icon.jpg" alt="Logo" class="sidebar-logo sidebar-content">
+                <span class="sidebar-title sidebar-content">Nxiora</span>
+            </div>
+            
+            <button class="new-chat-btn sidebar-content" id="new-chat-btn">
+                <i class="fas fa-plus"></i> New Chat
+            </button>
+            
+            <!-- Features List -->
+            <div class="sidebar-features sidebar-content">
+                <div class="features-label">FEATURES</div>
+                <ul class="features-list">
+                    <li class="feature-item" id="feature-images">
+                        <i class="fa-regular fa-image"></i>
+                        <span>Images</span>
+                    </li>
+                    <li class="feature-item" id="feature-videos">
+                        <i class="fa-solid fa-film"></i>
+                        <span>Videos</span>
+                    </li>
+                    <li class="feature-item" id="feature-projects">
+                        <i class="fa-regular fa-folder-open"></i>
+                        <span>Projects</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <hr class="sidebar-divider sidebar-content">
+            
+            <div class="chat-history-container sidebar-content">
+                <div class="history-label">YOUR CHATS</div>
+                <ul class="chat-history-list" id="chat-history-list">
+                    <!-- Dynamically populated via JS -->
+                </ul>
+            </div>
+            
+            <div class="profile-section sidebar-content">
+                <img src="icon.jpg" alt="Profile" class="profile-avatar">
+                <div class="profile-info">
+                    <div class="profile-name">User Account</div>
+                    <div class="profile-email">Groq Session</div>
+                </div>
+                <button class="logout-btn" id="logout-btn" title="Log Out">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. Main Chat Panel (On the Right) -->
+        <div class="chat-main" id="chat-main">
+            <!-- Topbar Navigation -->
+            <div class="chat-topbar">
+                <div class="topbar-left">
+                    <!-- Dropdown selector and version button removed to clean UI -->
+                    <!-- Keep original dropdowns inside, but hidden, to avoid breaking any selectors or JS binds -->
+                    <div class="api-select-wrapper" style="display: none !important;">
+                        <select id="api-select" class="model-select">
+                            <option value="groq" selected>Groq Cloud</option>
+                            <option value="nvidia">NVIDIA NIM</option>
+                            <option value="gemini">Google Gemini</option>
+                        </select>
+                    </div>
+                    <div class="model-select-wrapper" style="display: none !important;">
+                        <select id="model-select" class="model-select">
+                            <option value="llama-3.3-70b-versatile" selected>Llama 3.3 70B (Versatile)</option>
+                            <option value="llama-3.1-8b-instant">Llama 3.1 8B (Instant)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <!-- Links removed for a minimal topbar -->
+                    <img src="icon.jpg" alt="User profile" class="topbar-user-avatar">
+                </div>
+            </div>
+            
+            <!-- Conversation scroll body -->
+            <div class="chat-body" id="chat-body">
+                <!-- Welcome Empty State -->
+                <div class="welcome-container" id="welcome-container">
+                    <div class="welcome-logo-wrapper">
+                        <img src="icon.jpg" alt="Nxiora Logo" class="welcome-logo-img">
+                        <div class="welcome-logo-glow"></div>
+                    </div>
+                    <span class="welcome-label">WELCOME BACK</span>
+                    <h2 class="welcome-heading">Bring your ideas to life today</h2>
+                </div>
+                
+                <!-- Chat message streams -->
+                <div class="message-list hidden" id="message-list">
+                    <!-- Dynamically populated via JS -->
+                </div>
+            </div>
+
+            <!-- Gallery Panel (Hidden by default) -->
+            <div class="gallery-panel hidden" id="gallery-panel">
+                <div class="gallery-header">
+                    <div class="gallery-title-wrapper">
+                        <button class="back-to-chat-btn" id="back-to-chat-btn"><i class="fa-solid fa-arrow-left"></i></button>
+                        <h2 id="gallery-title">Images Gallery</h2>
+                    </div>
+                    <button class="gallery-clear-btn" id="gallery-clear-btn"><i class="fa-solid fa-trash-can"></i> Delete All</button>
+                </div>
+                <div class="gallery-grid" id="gallery-grid">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+            
+            <!-- Bottom Chat Input Footer (Cleaned - No file attachment) -->
+            <div class="chat-footer">
+                <div class="input-panel-pill">
+                    <!-- Plus Upload Trigger -->
+                    <button type="button" class="upload-btn-pill" id="upload-trigger-btn" title="Upload Photo/Video">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    
+                    <!-- Text input area -->
+                    <textarea id="chat-input" placeholder="Ask anything" rows="1"></textarea>
+                    
+                    <!-- Right Actions Wrapper -->
+                    <div class="input-actions-right">
+                        <!-- Voice Button -->
+                        <button type="button" class="voice-btn-pill" id="voice-btn-pill" title="Voice Input">
+                            <i class="fa-solid fa-microphone"></i>
+                        </button>
+                        
+                        <!-- Gemini Live Circular Pink Button -->
+                        <button type="button" class="live-circle-btn" id="live-btn" title="Nxiora Live">
+                            <div class="live-wave-icon">
+                                <span class="live-bar"></span>
+                                <span class="live-bar"></span>
+                                <span class="live-bar"></span>
+                                <span class="live-bar"></span>
+                            </div>
+                        </button>
+                        
+                        <!-- Send Circular Button (Hidden by default, shown when text exists) -->
+                        <button type="submit" class="send-btn-circle-new hidden" id="send-btn" disabled title="Send message">
+                            <i class="fa-solid fa-arrow-up"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="footer-info">
+                    Nxiora can make mistakes. Verify important info. Secure Multi-Model Routing.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Hidden file input for uploads -->
+    <input type="file" id="gallery-file-input" accept="image/*,video/*" multiple style="display: none;">
+
+    <!-- Gemini Live Overlay Waveform (hidden by default) -->
+    <div class="live-wave-overlay hidden" id="live-wave-overlay">
+        <!-- Floating Close Button -->
+        <button class="live-close-btn" id="live-wave-close" title="Close Live Session">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <!-- Centered Glowing Orb Container -->
+        <div class="live-orb-container" id="live-orb-container">
+            <div class="live-orb-glow"></div>
+            <img src="live-orb.jpg" alt="Live Orb" class="live-orb-img" id="live-orb-img">
+        </div>
+
+        <!-- Speech Status Indicator -->
+        <div class="live-status-container">
+            <p id="live-status-text">Nxiora is listening...</p>
+            <div class="live-wave-bars" id="live-wave-bars">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script -->
+    <script src="secrets.js"></script>
+    <script src="router.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
