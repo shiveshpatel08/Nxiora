@@ -849,7 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const avatar = document.createElement('img');
         avatar.className = 'message-avatar';
-        avatar.src = 'icon.jpg';
+        avatar.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2311998e'/><stop offset='50%' stop-color='%2338ef7d'/><stop offset='100%' stop-color='%2300b4db'/></linearGradient></defs><rect width='90' height='90' x='5' y='5' rx='24' fill='%230f141c' stroke='url(%23g)' stroke-width='4'/><path d='M 28 72 V 28 L 72 72 V 28' fill='none' stroke='url(%23g)' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/><circle cx='50' cy='50' r='4.5' fill='%2338ef7d'/></svg>";
         avatar.alt = role === 'user' ? 'User' : 'AI';
 
         const bubble = document.createElement('div');
