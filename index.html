@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login & Sign up</title>
     <!-- Favicon -->
-    <link rel="icon" type="image/jpeg" href="icon.jpg">
+    <link rel="icon" type="image/png" href="icon.png">
     <!-- Google Fonts: Playfair Display (Serif) and Poppins (Sans-serif) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,7 +32,7 @@
                 <button type="button" class="tab-btn" id="signInBtn"><i class="fas fa-arrow-left"></i> SIGN IN</button>
                 <form id="signup-form">
                     <div class="form-header">
-                        <img src="icon.jpg" alt="Logo" class="mini-logo">
+                        <img src="icon.png" alt="Logo" class="mini-logo">
                     </div>
                     <h1>Sign up</h1>
                     <p class="subtext">Welcome! Create an account here before you can write in the forum with others and exchange views.</p>
@@ -66,7 +66,7 @@
                 <button type="button" class="tab-btn" id="signUpBtn">SIGN UP <i class="fas fa-arrow-right"></i></button>
                 <form id="login-form">
                     <div class="form-header">
-                        <img src="icon.jpg" alt="Logo" class="mini-logo">
+                        <img src="icon.png" alt="Logo" class="mini-logo">
                     </div>
                     <h1>Login</h1>
                     <p class="subtext">Enter your details to log in to your account.</p>
@@ -128,9 +128,9 @@
                         <i class="fa-regular fa-image"></i>
                         <span>Images</span>
                     </li>
-                    <li class="feature-item" id="feature-videos">
-                        <i class="fa-solid fa-film"></i>
-                        <span>Videos</span>
+                    <li class="feature-item" id="feature-live-chat">
+                        <i class="fa-solid fa-headset"></i>
+                        <span>Live Chat</span>
                     </li>
                     <li class="feature-item" id="feature-projects">
                         <i class="fa-regular fa-folder-open"></i>
@@ -143,6 +143,10 @@
             
             <div class="chat-history-container sidebar-content">
                 <div class="history-label">YOUR CHATS</div>
+                <div class="history-search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="history-search-input" placeholder="Search chats...">
+                </div>
                 <ul class="chat-history-list" id="chat-history-list">
                     <!-- Dynamically populated via JS -->
                 </ul>
@@ -180,10 +184,6 @@
                             <option value="llama-3.1-8b-instant">Llama 3.1 8B (Instant)</option>
                         </select>
                     </div>
-                </div>
-                <div class="topbar-right">
-                    <!-- Links removed for a minimal topbar -->
-                    <img src="icon.jpg" alt="User profile" class="topbar-user-avatar">
                 </div>
             </div>
             

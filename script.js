@@ -298,6 +298,44 @@ document.addEventListener('DOMContentLoaded', () => {
     let attachedFileContent = '';
     let attachedFileName = '';
 
+    // Collapsible Sidebar Toggle Logic
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    const historySearchInput = document.getElementById('history-search-input');
+    
+    function autoCollapseSidebarOnMobile() {
+        if (window.innerWidth <= 768 && sidebar) {
+            sidebar.classList.add('collapsed');
+        }
+    }
+
+    function handleAutoSidebar() {
+        if (window.innerWidth <= 768 && sidebar) {
+            sidebar.classList.add('collapsed');
+        } else if (sidebar) {
+            sidebar.classList.remove('collapsed');
+        }
+    }
+    window.addEventListener('resize', handleAutoSidebar);
+
+    if (sidebarToggleBtn) {
+        sidebarToggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+    }
+
+    function getUserChatStorageKey() {
+        const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || { gmail: 'default' };
+        return 'forest_ai_chats_' + (currentUser.gmail || 'default').toLowerCase().replace(/[^a-z0-9]/g, '_');
+    }
+
+    function saveChatsToStorage() {
+        const storageKey = getUserChatStorageKey();
+        localStorage.setItem(storageKey, JSON.stringify(chats));
+        // Fallback sync for global chats
+        localStorage.setItem('forest_ai_chats', JSON.stringify(chats));
+    }
+
     function initializeChatSystem() {
         // Load current user details and update Profile sidebar
         const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || { name: 'User Account', gmail: 'Groq Session' };
@@ -310,16 +348,20 @@ document.addEventListener('DOMContentLoaded', () => {
             welcomeTitle.textContent = `Hello, ${currentUser.name}!`;
         }
 
-        // Load chats from localStorage
-        const storedChats = localStorage.getItem('forest_ai_chats');
+        // Load chats from user-specific localStorage key
+        const storageKey = getUserChatStorageKey();
+        const storedChats = localStorage.getItem(storageKey) || localStorage.getItem('forest_ai_chats');
         if (storedChats) {
             try {
                 chats = JSON.parse(storedChats);
             } catch (err) {
                 chats = [];
             }
+        } else {
+            chats = [];
         }
-        
+
+        handleAutoSidebar();
         renderHistoryList();
         
         // If there is an active session, load it, otherwise show welcome state
@@ -340,16 +382,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const historyList = document.getElementById('chat-history-list');
     const newChatBtn = document.getElementById('new-chat-btn');
     const logoutBtn = document.getElementById('logout-btn');
-
-    // Collapsible Sidebar Toggle Logic
-    const sidebar = document.getElementById('sidebar');
-    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-    
-    if (sidebarToggleBtn) {
-        sidebarToggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-        });
-    }
 
     // Auto-grow Textarea
     chatInput.addEventListener('input', function() {
@@ -401,7 +433,15 @@ document.addEventListener('DOMContentLoaded', () => {
         sendBtn.disabled = true;
         showWelcomeState();
         document.querySelectorAll('.history-item').forEach(item => item.classList.remove('active'));
+        autoCollapseSidebarOnMobile();
     });
+
+    // History Search Input Listener
+    if (historySearchInput) {
+        historySearchInput.addEventListener('input', (e) => {
+            renderHistoryList(e.target.value.trim().toLowerCase());
+        });
+    }
 
     // Logout Action (Slide Back to Login)
     logoutBtn.addEventListener('click', () => {
@@ -461,24 +501,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 3. STORAGE & SIDEBAR RENDER
     // ==========================================
-    function saveChatsToStorage() {
-        localStorage.setItem('forest_ai_chats', JSON.stringify(chats));
-    }
-
-    function renderHistoryList() {
+    function renderHistoryList(filterTerm = '') {
         historyList.innerHTML = '';
         
-        if (chats.length === 0) {
+        let filteredChats = chats;
+        if (filterTerm) {
+            filteredChats = chats.filter(chat => 
+                chat.title.toLowerCase().includes(filterTerm) ||
+                chat.messages.some(m => m.content.toLowerCase().includes(filterTerm))
+            );
+        }
+
+        if (filteredChats.length === 0) {
             const emptyLabel = document.createElement('div');
             emptyLabel.style.fontSize = '12px';
-            emptyLabel.style.color = 'rgba(255,255,255,0.2)';
+            emptyLabel.style.color = 'rgba(255,255,255,0.3)';
             emptyLabel.style.padding = '10px 12px';
-            emptyLabel.textContent = 'No recent chats';
+            emptyLabel.textContent = filterTerm ? 'No matching chats' : 'No recent chats';
             historyList.appendChild(emptyLabel);
             return;
         }
 
-        chats.sort((a, b) => b.timestamp - a.timestamp).forEach(chat => {
+        filteredChats.sort((a, b) => b.timestamp - a.timestamp).forEach(chat => {
             const li = document.createElement('li');
             li.className = 'history-item';
             if (chat.id === activeChatId) {
@@ -499,6 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
             li.addEventListener('click', (e) => {
                 if (e.target.closest('.history-item-actions')) return; // ignore action clicks
                 loadChatSession(chat.id);
+                autoCollapseSidebarOnMobile();
                 document.body.classList.remove('sidebar-open');
             });
 
@@ -517,14 +562,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     const newTitle = input.value.trim() || originalTitle;
                     chat.title = newTitle;
                     saveChatsToStorage();
-                    renderHistoryList();
+                    renderHistoryList(historySearchInput ? historySearchInput.value.trim().toLowerCase() : '');
                 }
 
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') saveRename();
                     if (e.key === 'Escape') {
                         input.replaceWith(textSpan);
-                        renderHistoryList();
+                        renderHistoryList(historySearchInput ? historySearchInput.value.trim().toLowerCase() : '');
                     }
                 });
 
@@ -544,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             showWelcomeState();
                         }
                     }
-                    renderHistoryList();
+                    renderHistoryList(historySearchInput ? historySearchInput.value.trim().toLowerCase() : '');
                 }
             });
 
@@ -1108,22 +1153,33 @@ You MUST adhere to these critical guidelines:
     }
 
     const featureImgBtn = document.getElementById('feature-images');
-    const featureVidBtn = document.getElementById('feature-videos');
+    const featureLiveBtn = document.getElementById('feature-live-chat');
     const featureProjBtn = document.getElementById('feature-projects');
 
     if (featureImgBtn) {
         featureImgBtn.addEventListener('click', () => {
             openGallery('images');
+            autoCollapseSidebarOnMobile();
         });
     }
-    if (featureVidBtn) {
-        featureVidBtn.addEventListener('click', () => {
-            openGallery('videos');
+    if (featureLiveBtn) {
+        featureLiveBtn.addEventListener('click', () => {
+            const overlay = document.getElementById('live-wave-overlay');
+            if (overlay) {
+                overlay.classList.remove('hidden');
+                liveSessionActive = true;
+                const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || { name: 'User' };
+                setTimeout(() => {
+                    speakResponse(`Hi ${currentUser.name}, I'm Nxiora. I'm listening. How can I help you?`);
+                }, 300);
+            }
+            autoCollapseSidebarOnMobile();
         });
     }
     if (featureProjBtn) {
         featureProjBtn.addEventListener('click', () => {
             activateFeatureMode('Create a project structure for ', 'Project structure mode activated! 📂');
+            autoCollapseSidebarOnMobile();
         });
     }
 
