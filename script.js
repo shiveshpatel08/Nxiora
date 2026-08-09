@@ -312,14 +312,24 @@ document.addEventListener('DOMContentLoaded', () => {
     let attachedFileContent = '';
     let attachedFileName = '';
 
-    // Collapsible Sidebar Toggle Logic
+    // Collapsible Sidebar Toggle & 3-Second Auto-Close Logic
     const sidebar = document.getElementById('sidebar');
     const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
     const historySearchInput = document.getElementById('history-search-input');
+    let sidebarAutoCloseTimer = null;
     
     function autoCollapseSidebarOnMobile() {
         if (window.innerWidth <= 768 && sidebar) {
             sidebar.classList.add('collapsed');
+        }
+    }
+
+    function resetSidebarAutoCloseTimer() {
+        if (sidebarAutoCloseTimer) clearTimeout(sidebarAutoCloseTimer);
+        if (sidebar && !sidebar.classList.contains('collapsed')) {
+            sidebarAutoCloseTimer = setTimeout(() => {
+                sidebar.classList.add('collapsed');
+            }, 3000);
         }
     }
 
@@ -328,13 +338,29 @@ document.addEventListener('DOMContentLoaded', () => {
             sidebar.classList.add('collapsed');
         } else if (sidebar) {
             sidebar.classList.remove('collapsed');
+            resetSidebarAutoCloseTimer();
         }
     }
     window.addEventListener('resize', handleAutoSidebar);
 
+    if (sidebar) {
+        sidebar.addEventListener('mousemove', resetSidebarAutoCloseTimer);
+        sidebar.addEventListener('mouseenter', resetSidebarAutoCloseTimer);
+        sidebar.addEventListener('mouseleave', () => {
+            resetSidebarAutoCloseTimer();
+        });
+    }
+
     if (sidebarToggleBtn) {
         sidebarToggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
+            if (sidebar) {
+                sidebar.classList.toggle('collapsed');
+                if (!sidebar.classList.contains('collapsed')) {
+                    resetSidebarAutoCloseTimer();
+                } else if (sidebarAutoCloseTimer) {
+                    clearTimeout(sidebarAutoCloseTimer);
+                }
+            }
         });
     }
 
