@@ -390,12 +390,9 @@ document.addEventListener('DOMContentLoaded', () => {
         handleAutoSidebar();
         renderHistoryList();
         
-        // If there is an active session, load it, otherwise show welcome state
-        if (chats.length > 0) {
-            loadChatSession(chats[0].id);
-        } else {
-            showWelcomeState();
-        }
+        // Always start with a new clean chat on login while preserving all saved chats in sidebar history!
+        activeChatId = null;
+        showWelcomeState();
     }
 
     const chatBody = document.getElementById('chat-body');
@@ -948,6 +945,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (pillContainer) pillContainer.classList.remove('multiline');
 
         // 1. Resolve Active Chat Session
+        if (welcomeContainer) welcomeContainer.classList.add('hidden');
+        if (messageList) messageList.classList.remove('hidden');
+
         if (!activeChatId) {
             activeChatId = 'chat_' + Date.now();
             // Generate simple title from first message
@@ -960,8 +960,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 timestamp: Date.now()
             });
             
-            welcomeContainer.classList.add('hidden');
-            messageList.classList.remove('hidden');
             messageList.innerHTML = '';
         }
 
@@ -1601,10 +1599,65 @@ You MUST adhere to these critical guidelines:
         });
     }
 
+    // Real Web Speech API Dictation for Input Mic Button
     const voiceBtnPill = document.getElementById('voice-btn-pill');
+    let pillRecognition = null;
+    let isPillListening = false;
+
     if (voiceBtnPill) {
-        voiceBtnPill.addEventListener('click', () => {
-            showToast('Simulated Voice input activated. Start speaking! 🎙️', 'success');
-        });
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            pillRecognition = new SpeechRecognition();
+            pillRecognition.continuous = false;
+            pillRecognition.interimResults = true;
+            pillRecognition.lang = 'en-US';
+
+            pillRecognition.onstart = () => {
+                isPillListening = true;
+                voiceBtnPill.classList.add('listening');
+                voiceBtnPill.style.color = '#ef4444';
+                showToast('Listening... Speak now 🎙️', 'success');
+            };
+
+            pillRecognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    transcript += event.results[i][0].transcript;
+                }
+                if (chatInput) {
+                    chatInput.value = transcript;
+                    chatInput.dispatchEvent(new Event('input'));
+                }
+            };
+
+            pillRecognition.onerror = (event) => {
+                console.warn('Speech recognition error:', event.error);
+                isPillListening = false;
+                voiceBtnPill.classList.remove('listening');
+                voiceBtnPill.style.color = '';
+            };
+
+            pillRecognition.onend = () => {
+                isPillListening = false;
+                voiceBtnPill.classList.remove('listening');
+                voiceBtnPill.style.color = '';
+            };
+
+            voiceBtnPill.addEventListener('click', () => {
+                if (isPillListening) {
+                    pillRecognition.stop();
+                } else {
+                    try {
+                        pillRecognition.start();
+                    } catch (e) {
+                        console.error('Recognition start error:', e);
+                    }
+                }
+            });
+        } else {
+            voiceBtnPill.addEventListener('click', () => {
+                showToast('Speech Recognition is not supported in this browser.', 'error');
+            });
+        }
     }
 });
