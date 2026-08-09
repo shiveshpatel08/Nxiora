@@ -159,16 +159,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 
-    // View Switch Transition (Login to Chat Page)
+    // View Switch Transition with High Flash Light Burst
     function animateToChat() {
+        const flashOverlay = document.getElementById('flash-overlay');
         document.body.classList.add('logging-in');
         
+        if (flashOverlay) {
+            flashOverlay.classList.remove('active');
+            // Trigger reflow to restart CSS animation
+            void flashOverlay.offsetWidth;
+            flashOverlay.classList.add('active');
+        }
+
+        // Peak brightness switch (at 350ms)
         setTimeout(() => {
             const loginSection = document.getElementById('login-section');
             const chatSection = document.getElementById('chat-section');
             
-            loginSection.classList.add('hidden');
-            chatSection.classList.remove('hidden');
+            if (loginSection) loginSection.classList.add('hidden');
+            if (chatSection) chatSection.classList.remove('hidden');
             
             document.body.classList.remove('logging-in');
             document.body.classList.add('chat-view');
@@ -176,7 +185,12 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Initialize chat system
             initializeChatSystem();
-        }, 800);
+        }, 350);
+
+        // Remove active class after animation completes (at 950ms)
+        setTimeout(() => {
+            if (flashOverlay) flashOverlay.classList.remove('active');
+        }, 950);
     }
 
     // Login Form Submit Action
