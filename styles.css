@@ -2729,3 +2729,39 @@ body.chat-visible .chat-main {
     100% { height: 20px; }
 }
 
+/* ==========================================
+   DYNAMIC MORPHING CIRCULAR LOGO SHAPE ANIMATION
+   ========================================== */
+.sidebar-logo,
+.welcome-logo,
+.profile-avatar,
+.message-avatar,
+.mini-logo {
+    animation: logoShapeMorph 8s ease-in-out infinite alternate !important;
+    transition: all 0.5s ease;
+}
+
+@keyframes logoShapeMorph {
+    0% {
+        border-radius: 50% 50% 50% 50%;
+        box-shadow: 0 0 10px rgba(56, 239, 125, 0.4);
+    }
+    25% {
+        border-radius: 60% 40% 55% 45% / 45% 55% 40% 60%;
+        box-shadow: 0 0 18px rgba(17, 153, 142, 0.6);
+    }
+    50% {
+        border-radius: 45% 55% 40% 60% / 60% 40% 55% 45%;
+        box-shadow: 0 0 22px rgba(56, 239, 125, 0.7);
+    }
+    75% {
+        border-radius: 55% 45% 60% 40% / 40% 60% 45% 55%;
+        box-shadow: 0 0 16px rgba(0, 180, 219, 0.6);
+    }
+    100% {
+        border-radius: 50% 50% 50% 50%;
+        box-shadow: 0 0 10px rgba(56, 239, 125, 0.4);
+    }
+}
+
+
