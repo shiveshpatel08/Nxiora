@@ -1,4 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Theme Mode (Dark/Light)
+    function applyTheme(theme) {
+        if (theme === 'light') {
+            document.body.classList.add('light-mode');
+        } else {
+            document.body.classList.remove('light-mode');
+        }
+    }
+    const savedTheme = localStorage.getItem('nxiora_theme') || 'dark';
+    applyTheme(savedTheme);
+
     // API Configurations
     const GROQ_API_KEY = (typeof SECRETS !== 'undefined' && SECRETS.GROQ_API_KEY) || localStorage.getItem('GROQ_API_KEY') || 'YOUR_GROQ_API_KEY_HERE';
     const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -298,11 +309,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let attachedFileContent = '';
     let attachedFileName = '';
 
-    // Collapsible Sidebar Toggle & 3-Second Auto-Close Logic
+    // Collapsible Sidebar & Hover Cursor Logic (Open on Left, Close on Right/Leave)
     const sidebar = document.getElementById('sidebar');
     const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
     const historySearchInput = document.getElementById('history-search-input');
-    let sidebarAutoCloseTimer = null;
     
     function autoCollapseSidebarOnMobile() {
         if (window.innerWidth <= 768 && sidebar) {
@@ -310,42 +320,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function resetSidebarAutoCloseTimer() {
-        if (sidebarAutoCloseTimer) clearTimeout(sidebarAutoCloseTimer);
-        if (sidebar && !sidebar.classList.contains('collapsed')) {
-            sidebarAutoCloseTimer = setTimeout(() => {
-                sidebar.classList.add('collapsed');
-            }, 3000);
-        }
-    }
-
     function handleAutoSidebar() {
         if (window.innerWidth <= 768 && sidebar) {
             sidebar.classList.add('collapsed');
         } else if (sidebar) {
-            sidebar.classList.remove('collapsed');
-            resetSidebarAutoCloseTimer();
+            sidebar.classList.add('collapsed');
         }
     }
     window.addEventListener('resize', handleAutoSidebar);
 
     if (sidebar) {
-        sidebar.addEventListener('mousemove', resetSidebarAutoCloseTimer);
-        sidebar.addEventListener('mouseenter', resetSidebarAutoCloseTimer);
+        // Keep open when mouse hovers over sidebar
+        sidebar.addEventListener('mouseenter', () => {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('collapsed');
+            }
+        });
+
+        // Close sidebar when mouse leaves sidebar
         sidebar.addEventListener('mouseleave', () => {
-            resetSidebarAutoCloseTimer();
+            if (window.innerWidth > 768) {
+                sidebar.classList.add('collapsed');
+            }
         });
     }
+
+    // Open sidebar when cursor moves near left edge (X <= 40px)
+    // Close sidebar when cursor moves right away from sidebar (X > 290px)
+    document.addEventListener('mousemove', (e) => {
+        if (window.innerWidth > 768 && sidebar) {
+            if (e.clientX <= 40) {
+                sidebar.classList.remove('collapsed');
+            } else if (!sidebar.classList.contains('collapsed') && e.clientX > 290) {
+                sidebar.classList.add('collapsed');
+            }
+        }
+    });
 
     if (sidebarToggleBtn) {
         sidebarToggleBtn.addEventListener('click', () => {
             if (sidebar) {
                 sidebar.classList.toggle('collapsed');
-                if (!sidebar.classList.contains('collapsed')) {
-                    resetSidebarAutoCloseTimer();
-                } else if (sidebarAutoCloseTimer) {
-                    clearTimeout(sidebarAutoCloseTimer);
-                }
             }
         });
     }
@@ -365,8 +380,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeChatSystem() {
         // Load current user details and update Profile sidebar
         const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || { name: 'User Account', gmail: 'Groq Session' };
-        document.querySelector('.profile-name').textContent = currentUser.name;
-        document.querySelector('.profile-email').textContent = currentUser.gmail;
+        const nameEl = document.querySelector('.profile-name');
+        const emailEl = document.querySelector('.profile-email');
+        const avatarEl = document.querySelector('.profile-avatar');
+
+        if (nameEl) nameEl.textContent = currentUser.name;
+        if (emailEl) emailEl.textContent = currentUser.gmail;
+        if (avatarEl && currentUser.avatar) avatarEl.src = currentUser.avatar;
         
         // Personalize the welcome card header
         const welcomeTitle = document.querySelector('#welcome-container h2');
@@ -849,6 +869,9 @@ document.addEventListener('DOMContentLoaded', () => {
         avatar.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2311998e'/><stop offset='50%' stop-color='%2338ef7d'/><stop offset='100%' stop-color='%2300b4db'/></linearGradient></defs><rect width='90' height='90' x='5' y='5' rx='24' fill='%230f141c' stroke='url(%23g)' stroke-width='4'/><path d='M 28 72 V 28 L 72 72 V 28' fill='none' stroke='url(%23g)' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/><circle cx='50' cy='50' r='4.5' fill='%2338ef7d'/></svg>";
         avatar.alt = role === 'user' ? 'User' : 'AI';
 
+        const contentWrapper = document.createElement('div');
+        contentWrapper.className = `message-content-wrapper ${role === 'user' ? 'user-content-wrapper' : 'assistant-content-wrapper'}`;
+
         const bubble = document.createElement('div');
         bubble.className = `message-bubble ${role === 'user' ? 'user-bubble' : 'assistant-bubble'}`;
         
@@ -869,7 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 100);
         }
 
-        // Add Copy and Share buttons to the message actions bar
+        // Add Copy and Share buttons to the message actions bar below the message box
         const actionsBar = document.createElement('div');
         actionsBar.className = 'message-actions-bar';
         
@@ -887,10 +910,17 @@ document.addEventListener('DOMContentLoaded', () => {
         
         actionsBar.appendChild(copyBtn);
         actionsBar.appendChild(shareBtn);
-        bubble.appendChild(actionsBar);
+
+        contentWrapper.appendChild(bubble);
+        contentWrapper.appendChild(actionsBar);
 
         row.appendChild(avatar);
-        row.appendChild(bubble);
+        row.appendChild(contentWrapper);
+
+        // Hide welcome screen when any message is displayed
+        if (welcomeContainer) welcomeContainer.classList.add('hidden');
+        if (messageList) messageList.classList.remove('hidden');
+
         messageList.appendChild(row);
         
         return bubble;
@@ -1603,6 +1633,7 @@ You MUST adhere to these critical guidelines:
     const voiceBtnPill = document.getElementById('voice-btn-pill');
     let pillRecognition = null;
     let isPillListening = false;
+    let originalInputPlaceholder = 'Ask anything';
 
     if (voiceBtnPill) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1615,7 +1646,11 @@ You MUST adhere to these critical guidelines:
             pillRecognition.onstart = () => {
                 isPillListening = true;
                 voiceBtnPill.classList.add('listening');
-                voiceBtnPill.style.color = '#ef4444';
+                voiceBtnPill.style.color = '#3b82f6';
+                if (chatInput) {
+                    originalInputPlaceholder = chatInput.placeholder || 'Ask anything';
+                    chatInput.placeholder = 'Listening...';
+                }
                 showToast('Listening... Speak now 🎙️', 'success');
             };
 
@@ -1635,12 +1670,18 @@ You MUST adhere to these critical guidelines:
                 isPillListening = false;
                 voiceBtnPill.classList.remove('listening');
                 voiceBtnPill.style.color = '';
+                if (chatInput) {
+                    chatInput.placeholder = originalInputPlaceholder || 'Ask anything';
+                }
             };
 
             pillRecognition.onend = () => {
                 isPillListening = false;
                 voiceBtnPill.classList.remove('listening');
                 voiceBtnPill.style.color = '';
+                if (chatInput) {
+                    chatInput.placeholder = originalInputPlaceholder || 'Ask anything';
+                }
             };
 
             voiceBtnPill.addEventListener('click', () => {
@@ -1659,5 +1700,134 @@ You MUST adhere to these critical guidelines:
                 showToast('Speech Recognition is not supported in this browser.', 'error');
             });
         }
+    }
+
+    // ==========================================
+    // SETTINGS & PROFILE & THEME CONTROLLER
+    // ==========================================
+    const settingsModal = document.getElementById('settings-modal');
+    const featureSettings = document.getElementById('feature-settings');
+    const sidebarSettingsBtn = document.getElementById('sidebar-settings-btn');
+    const closeSettingsBtn = document.getElementById('close-settings-btn');
+    const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    
+    const themeDarkBtn = document.getElementById('theme-dark-btn');
+    const themeLightBtn = document.getElementById('theme-light-btn');
+    
+    const settingsAvatarPreview = document.getElementById('settings-avatar-preview');
+    const triggerAvatarBtn = document.getElementById('trigger-avatar-btn');
+    const settingsAvatarFile = document.getElementById('settings-avatar-file');
+    const settingsNameInput = document.getElementById('settings-name-input');
+    const settingsEmailInput = document.getElementById('settings-email-input');
+
+    let tempAvatarDataUrl = null;
+
+    function openSettingsModal() {
+        if (!settingsModal) return;
+        
+        const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || { name: 'User Account', gmail: 'Groq Session' };
+        if (settingsNameInput) settingsNameInput.value = currentUser.name || '';
+        if (settingsEmailInput) settingsEmailInput.value = currentUser.gmail || 'Groq Session';
+        
+        if (settingsAvatarPreview) {
+            settingsAvatarPreview.src = currentUser.avatar || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2311998e'/><stop offset='50%' stop-color='%2338ef7d'/><stop offset='100%' stop-color='%2300b4db'/></linearGradient></defs><rect width='90' height='90' x='5' y='5' rx='24' fill='%230f141c' stroke='url(%23g)' stroke-width='4'/><path d='M 28 72 V 28 L 72 72 V 28' fill='none' stroke='url(%23g)' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/><circle cx='50' cy='50' r='4.5' fill='%2338ef7d'/></svg>";
+        }
+        tempAvatarDataUrl = null;
+
+        const currentTheme = localStorage.getItem('nxiora_theme') || 'dark';
+        if (currentTheme === 'light') {
+            if (themeLightBtn) themeLightBtn.classList.add('active');
+            if (themeDarkBtn) themeDarkBtn.classList.remove('active');
+        } else {
+            if (themeDarkBtn) themeDarkBtn.classList.add('active');
+            if (themeLightBtn) themeLightBtn.classList.remove('active');
+        }
+
+        settingsModal.classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+        if (settingsModal) settingsModal.classList.add('hidden');
+    }
+
+    if (featureSettings) featureSettings.addEventListener('click', openSettingsModal);
+    if (sidebarSettingsBtn) sidebarSettingsBtn.addEventListener('click', openSettingsModal);
+    if (closeSettingsBtn) closeSettingsBtn.addEventListener('click', closeSettingsModal);
+    if (cancelSettingsBtn) cancelSettingsBtn.addEventListener('click', closeSettingsModal);
+
+    if (themeDarkBtn) {
+        themeDarkBtn.addEventListener('click', () => {
+            themeDarkBtn.classList.add('active');
+            if (themeLightBtn) themeLightBtn.classList.remove('active');
+            applyTheme('dark');
+        });
+    }
+
+    if (themeLightBtn) {
+        themeLightBtn.addEventListener('click', () => {
+            themeLightBtn.classList.add('active');
+            if (themeDarkBtn) themeDarkBtn.classList.remove('active');
+            applyTheme('light');
+        });
+    }
+
+    if (triggerAvatarBtn && settingsAvatarFile) {
+        triggerAvatarBtn.addEventListener('click', () => settingsAvatarFile.click());
+    }
+
+    if (settingsAvatarFile) {
+        settingsAvatarFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    tempAvatarDataUrl = event.target.result;
+                    if (settingsAvatarPreview) {
+                        settingsAvatarPreview.src = tempAvatarDataUrl;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => {
+            const newName = settingsNameInput ? settingsNameInput.value.trim() : '';
+            const selectedTheme = themeLightBtn && themeLightBtn.classList.contains('active') ? 'light' : 'dark';
+
+            let currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || { name: 'User Account', gmail: 'Groq Session' };
+            if (newName) currentUser.name = newName;
+            if (tempAvatarDataUrl) currentUser.avatar = tempAvatarDataUrl;
+            
+            localStorage.setItem('forest_ai_current_user', JSON.stringify(currentUser));
+            
+            // Also update forest_ai_user if present
+            let regUser = JSON.parse(localStorage.getItem('forest_ai_user'));
+            if (regUser) {
+                if (newName) regUser.name = newName;
+                if (tempAvatarDataUrl) regUser.avatar = tempAvatarDataUrl;
+                localStorage.setItem('forest_ai_user', JSON.stringify(regUser));
+            }
+
+            // Save active theme
+            localStorage.setItem('nxiora_theme', selectedTheme);
+            applyTheme(selectedTheme);
+
+            // Update UI elements
+            const profileNameEl = document.querySelector('.profile-name');
+            const profileAvatarEl = document.querySelector('.profile-avatar');
+            if (profileNameEl) profileNameEl.textContent = currentUser.name;
+            if (profileAvatarEl && currentUser.avatar) profileAvatarEl.src = currentUser.avatar;
+
+            const welcomeTitle = document.querySelector('#welcome-container h2');
+            if (welcomeTitle) {
+                welcomeTitle.textContent = `Hello, ${currentUser.name}!`;
+            }
+
+            showToast('Settings saved successfully! ✨', 'success');
+            closeSettingsModal();
+        });
     }
 });

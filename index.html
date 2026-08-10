@@ -109,9 +109,6 @@
         <!-- 1. Left/Right Collapsible Sidebar (On the Left) -->
         <div class="sidebar collapsed" id="sidebar">
             <div class="sidebar-header">
-                <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Toggle Sidebar">
-                    <i class="fas fa-bars"></i>
-                </button>
                 <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2311998e'/><stop offset='50%' stop-color='%2338ef7d'/><stop offset='100%' stop-color='%2300b4db'/></linearGradient></defs><rect width='90' height='90' x='5' y='5' rx='24' fill='%230f141c' stroke='url(%23g)' stroke-width='4'/><path d='M 28 72 V 28 L 72 72 V 28' fill='none' stroke='url(%23g)' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/><circle cx='50' cy='50' r='4.5' fill='%2338ef7d'/></svg>" alt="Nxiora Logo" class="sidebar-logo sidebar-content">
                 <span class="sidebar-title sidebar-content">Nxiora</span>
             </div>
@@ -136,6 +133,10 @@
                         <i class="fa-regular fa-folder-open"></i>
                         <span>Projects</span>
                     </li>
+                    <li class="feature-item" id="feature-settings">
+                        <i class="fa-solid fa-gear"></i>
+                        <span>Settings</span>
+                    </li>
                 </ul>
             </div>
             
@@ -158,6 +159,9 @@
                     <div class="profile-name">User Account</div>
                     <div class="profile-email">Groq Session</div>
                 </div>
+                <button class="settings-btn" id="sidebar-settings-btn" title="Settings">
+                    <i class="fas fa-gear"></i>
+                </button>
                 <button class="logout-btn" id="logout-btn" title="Log Out">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
@@ -273,12 +277,66 @@
             <div class="live-wave-bars" id="live-wave-bars">
                 <span></span>
                 <span></span>
-                <span></span>
-                <span></span>
             </div>
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div class="settings-modal-overlay hidden" id="settings-modal">
+        <div class="settings-modal-card">
+            <div class="settings-modal-header">
+                <h3><i class="fa-solid fa-gear"></i> Settings</h3>
+                <button class="modal-close-btn" id="close-settings-btn" title="Close Settings">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="settings-modal-body">
+                <!-- Theme / Appearance Section -->
+                <div class="settings-group">
+                    <label class="settings-group-title"><i class="fa-solid fa-circle-half-stroke"></i> Appearance Mode</label>
+                    <div class="theme-switch-container">
+                        <button type="button" class="theme-option-btn active" id="theme-dark-btn">
+                            <i class="fa-solid fa-moon"></i> Dark Mode
+                        </button>
+                        <button type="button" class="theme-option-btn" id="theme-light-btn">
+                            <i class="fa-solid fa-sun"></i> Light Mode
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="settings-divider">
+
+                <!-- Profile Customization Section -->
+                <div class="settings-group">
+                    <label class="settings-group-title"><i class="fa-solid fa-user-gear"></i> Profile Settings</label>
+                    
+                    <div class="profile-edit-wrapper">
+                        <div class="avatar-edit-container">
+                            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2311998e'/><stop offset='50%' stop-color='%2338ef7d'/><stop offset='100%' stop-color='%2300b4db'/></linearGradient></defs><rect width='90' height='90' x='5' y='5' rx='24' fill='%230f141c' stroke='url(%23g)' stroke-width='4'/><path d='M 28 72 V 28 L 72 72 V 28' fill='none' stroke='url(%23g)' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/><circle cx='50' cy='50' r='4.5' fill='%2338ef7d'/></svg>" alt="Avatar Preview" id="settings-avatar-preview" class="settings-avatar-img">
+                            
+                            <button type="button" class="change-avatar-btn" id="trigger-avatar-btn">
+                                <i class="fa-solid fa-camera"></i> Change Photo
+                            </button>
+                            <input type="file" id="settings-avatar-file" accept="image/*" style="display: none;">
+                        </div>
+
+                        <div class="profile-inputs">
+                            <div class="setting-input-field">
+                                <label for="settings-name-input">Display Name</label>
+                                <input type="text" id="settings-name-input" placeholder="Enter your name">
+                            </div>
+                            <div class="setting-input-field">
+                                <label for="settings-email-input">Email / Gmail</label>
+                                <input type="email" id="settings-email-input" placeholder="user@gmail.com" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-modal-footer">
+                <button type="button" class="settings-btn-cancel" id="cancel-settings-btn">Cancel</button>
+                <button type="button" class="settings-btn-save" id="save-settings-btn">Save Changes</button>
+            </div>
         </div>
     </div>
 
