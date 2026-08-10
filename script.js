@@ -1461,6 +1461,8 @@ You MUST adhere to these critical guidelines:
         renderHistoryList();
     }
 
+    let liveSubtitlesVisible = true;
+
     function updateLiveTranscript(speaker, text, type = 'ai') {
         const transcriptEl = document.getElementById('live-transcript-text');
         if (!transcriptEl) return;
@@ -1476,25 +1478,31 @@ You MUST adhere to these critical guidelines:
         liveSessionActive = true;
         liveMicMuted = false;
 
+        // Unblock audio playback for browser speech synthesis
+        if (window.speechSynthesis) {
+            window.speechSynthesis.resume();
+        }
+
         const micBtn = document.getElementById('live-mic-toggle-btn');
         if (micBtn) {
             micBtn.classList.remove('muted');
             micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
         }
 
-        const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || JSON.parse(localStorage.getItem('forest_ai_user')) || { name: 'User' };
-        let rawName = (currentUser.name && currentUser.name !== 'User Account' && currentUser.name !== 'User') 
-            ? currentUser.name.trim().split(' ')[0] 
-            : '';
-        
-        let greetingText = rawName 
-            ? `Hello ${rawName}! Main sun rahi hoon, aap bataiye aap kya kehna chahte hain?` 
-            : `Hello! Main sun rahi hoon, aap bataiye aap kya kehna chahte hain?`;
+        const statusEl = document.getElementById('live-status-text');
+        if (statusEl) statusEl.textContent = 'Main sun rahi hoon, boliyee... 🎙️';
 
-        updateLiveTranscript('Nxiora', greetingText, 'ai');
-        
+        const transcriptEl = document.getElementById('live-transcript-text');
+        if (transcriptEl) {
+            transcriptEl.className = 'transcript-placeholder';
+            transcriptEl.textContent = 'Nxiora sun rahi hai... Aap boliyee!';
+        }
+
+        // Start listening quietly right away without speaking initial greeting audio
         setTimeout(() => {
-            speakResponse(greetingText);
+            if (liveSessionActive && !liveMicMuted) {
+                startVoiceRecognition();
+            }
         }, 300);
     }
 
@@ -1508,71 +1516,107 @@ You MUST adhere to these critical guidelines:
         if (!window.speechSynthesis) return null;
         const voices = window.speechSynthesis.getVoices();
         
-        // Priority for natural Hindi/Indian/English female voices
-        let voice = voices.find(v => v.lang.includes('hi') || v.name.includes('Google हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera'))
-                 || voices.find(v => v.name.includes('Google UK English Female') || v.name.includes('Google US English Female') || v.name.includes('Aria') || v.name.includes('Zira') || v.name.includes('Hazel') || v.name.includes('Samantha') || (v.name.toLowerCase().includes('female') && v.lang.startsWith('en')))
-                 || voices.find(v => v.lang.startsWith('en')) 
-                 || voices[0];
+        // Priority for natural Hindi / Indian / English female voices
+        let voice = voices.find(v => (v.lang.includes('hi') || v.name.includes('Google हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')) && (v.name.toLowerCase().includes('female') || v.name.includes('हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')));
+        
+        if (!voice) {
+            voice = voices.find(v => v.name.includes('Google UK English Female') 
+                                  || v.name.includes('Google US English Female') 
+                                  || v.name.includes('Google हिन्दी')
+                                  || v.name.includes('Natural')
+                                  || v.name.includes('Aria') 
+                                  || v.name.includes('Zira') 
+                                  || v.name.includes('Jenny') 
+                                  || v.name.includes('Hazel') 
+                                  || v.name.includes('Samantha') 
+                                  || (v.name.toLowerCase().includes('female') && (v.lang.startsWith('en') || v.lang.startsWith('hi'))));
+        }
+        
+        if (!voice) {
+            voice = voices.find(v => v.name.toLowerCase().includes('female'));
+        }
+
+        if (!voice) {
+            voice = voices.find(v => v.lang.includes('hi') || v.lang.startsWith('en')) || voices[0];
+        }
+        
         return voice;
     }
 
     function speakResponse(text) {
         if (!window.speechSynthesis || !liveSessionActive) return;
-        window.speechSynthesis.cancel(); 
+        
+        window.speechSynthesis.resume();
+        
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+            window.speechSynthesis.cancel();
+        }
 
-        speechUtterance = new SpeechSynthesisUtterance(text);
-        const voice = getFemaleVoice();
-        if (voice) {
-            speechUtterance.voice = voice;
-            if (voice.lang && voice.lang.includes('hi')) {
+        setTimeout(() => {
+            if (!liveSessionActive) return;
+
+            speechUtterance = new SpeechSynthesisUtterance(text);
+            const voice = getFemaleVoice();
+            if (voice) {
+                speechUtterance.voice = voice;
+                if (voice.lang && (voice.lang.includes('hi') || voice.lang.includes('IN'))) {
+                    speechUtterance.lang = voice.lang;
+                } else {
+                    speechUtterance.lang = 'hi-IN';
+                }
+            } else {
                 speechUtterance.lang = 'hi-IN';
             }
-        }
-        speechUtterance.pitch = 1.05;
-        speechUtterance.rate = 1.0;
 
-        speechUtterance.onstart = () => {
-            const container = document.getElementById('live-orb-container');
-            const waveBars = document.getElementById('live-wave-bars');
-            if (container) {
-                container.classList.remove('listening');
-                container.classList.add('speaking');
-            }
-            if (waveBars) waveBars.classList.add('active');
-            const statusEl = document.getElementById('live-status-text');
-            if (statusEl) statusEl.textContent = 'Nxiora sunati hai... 🔊';
-        };
+            speechUtterance.pitch = 1.15; // Natural human female voice pitch
+            speechUtterance.rate = 1.0;
+            speechUtterance.volume = 1.0;
 
-        speechUtterance.onend = () => {
-            const container = document.getElementById('live-orb-container');
-            const waveBars = document.getElementById('live-wave-bars');
-            if (container) container.classList.remove('speaking');
-            if (waveBars) waveBars.classList.remove('active');
-            
-            const statusEl = document.getElementById('live-status-text');
-            if (statusEl) statusEl.textContent = 'Main sun rahi hoon, boliyee... 🎙️';
+            speechUtterance.onstart = () => {
+                console.log('Speech synthesis started speaking out loud:', text);
+                const container = document.getElementById('live-orb-container');
+                const waveBars = document.getElementById('live-wave-bars');
+                if (container) {
+                    container.classList.remove('listening');
+                    container.classList.add('speaking');
+                }
+                if (waveBars) waveBars.classList.add('active');
+                const statusEl = document.getElementById('live-status-text');
+                if (statusEl) statusEl.textContent = 'Nxiora bol rahi hai... 🔊';
+            };
 
-            if (liveSessionActive && !liveMicMuted) {
-                startVoiceRecognition();
-            }
-        };
+            speechUtterance.onend = () => {
+                console.log('Speech synthesis ended');
+                const container = document.getElementById('live-orb-container');
+                const waveBars = document.getElementById('live-wave-bars');
+                if (container) container.classList.remove('speaking');
+                if (waveBars) waveBars.classList.remove('active');
+                
+                const statusEl = document.getElementById('live-status-text');
+                if (statusEl) statusEl.textContent = 'Main sun rahi hoon, boliyee... 🎙️';
 
-        speechUtterance.onerror = (e) => {
-            console.error('Speech synthesis error:', e);
-            const container = document.getElementById('live-orb-container');
-            const waveBars = document.getElementById('live-wave-bars');
-            if (container) container.classList.remove('speaking');
-            if (waveBars) waveBars.classList.remove('active');
-            
-            const statusEl = document.getElementById('live-status-text');
-            if (statusEl) statusEl.textContent = 'Main sun rahi hoon... 🎙️';
-            
-            if (liveSessionActive && !liveMicMuted) {
-                startVoiceRecognition();
-            }
-        };
+                if (liveSessionActive && !liveMicMuted) {
+                    startVoiceRecognition();
+                }
+            };
 
-        window.speechSynthesis.speak(speechUtterance);
+            speechUtterance.onerror = (e) => {
+                console.error('Speech synthesis error:', e);
+                const container = document.getElementById('live-orb-container');
+                const waveBars = document.getElementById('live-wave-bars');
+                if (container) container.classList.remove('speaking');
+                if (waveBars) waveBars.classList.remove('active');
+                
+                const statusEl = document.getElementById('live-status-text');
+                if (statusEl) statusEl.textContent = 'Main sun rahi hoon... 🎙️';
+                
+                if (liveSessionActive && !liveMicMuted) {
+                    startVoiceRecognition();
+                }
+            };
+
+            window.speechSynthesis.speak(speechUtterance);
+        }, 80);
     }
 
     function initVoiceRecognition() {
@@ -1721,6 +1765,7 @@ Strict Persona & Behavior Rules:
     const liveWaveClose = document.getElementById('live-wave-close');
     const liveEndCallBtn = document.getElementById('live-end-call-btn');
     const liveMicToggleBtn = document.getElementById('live-mic-toggle-btn');
+    const liveSubtitlesToggleBtn = document.getElementById('live-subtitles-toggle-btn');
 
     if (liveBtn) {
         liveBtn.addEventListener('click', openLiveChatSession);
@@ -1730,6 +1775,21 @@ Strict Persona & Behavior Rules:
     }
     if (liveEndCallBtn) {
         liveEndCallBtn.addEventListener('click', closeLiveChatSession);
+    }
+    if (liveSubtitlesToggleBtn) {
+        liveSubtitlesToggleBtn.addEventListener('click', () => {
+            liveSubtitlesVisible = !liveSubtitlesVisible;
+            const transcriptBox = document.getElementById('live-transcript-box');
+            if (liveSubtitlesVisible) {
+                liveSubtitlesToggleBtn.classList.add('active');
+                if (transcriptBox) transcriptBox.style.display = 'block';
+                showToast('Text Subtitles: ON 💬', 'info');
+            } else {
+                liveSubtitlesToggleBtn.classList.remove('active');
+                if (transcriptBox) transcriptBox.style.display = 'none';
+                showToast('Text Subtitles: OFF 🙈', 'info');
+            }
+        });
     }
     if (liveMicToggleBtn) {
         liveMicToggleBtn.addEventListener('click', () => {

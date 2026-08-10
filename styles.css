@@ -2921,6 +2921,23 @@ body.chat-visible .chat-main {
     border: none;
 }
 
+.live-control-btn.sub-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.live-control-btn.sub-btn.active {
+    background: rgba(0, 198, 255, 0.2);
+    border-color: #00c6ff;
+    color: #00c6ff;
+    box-shadow: 0 0 15px rgba(0, 198, 255, 0.3);
+}
+
+.live-control-btn.sub-btn:hover {
+    transform: scale(1.08);
+}
+
 .live-control-btn.mic-btn {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.15);
