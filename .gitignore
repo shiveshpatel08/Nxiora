@@ -1,1 +1,10 @@
 secrets.js
+
+# Ignore all media and photo files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.bmp
+*.ico
