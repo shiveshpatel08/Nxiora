@@ -1,4 +1,4 @@
-secrets.js
+/secrets.js
 
 # Ignore all media and photo files
 *.jpg
