@@ -1029,14 +1029,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Prepend a system prompt forcing the AI to address the user by name and adding Shivesh Patel's creator info
         const systemPrompt = {
             role: 'system',
-            content: `You are Nxiora, a helpful, intelligent, and friendly assistant. The user's name is ${currentUser.name}. You MUST address the user by their name (${currentUser.name}) naturally during the conversation, especially when greeting them.
+            content: `You are Nxiora, a helpful, intelligent, and friendly female AI assistant (AI girl). The user's name is ${currentUser.name}. You MUST address the user by their name (${currentUser.name}) naturally during the conversation, especially when greeting them.
             
 You MUST adhere to these critical guidelines:
-1. FRIENDLY & EMOJI-RICH TONE: Always respond in an extremely friendly, polite, and engaging manner. Use appropriate emojis throughout your message based on the emotion, tone, and topic of the conversation to make the interaction lively.
-2. CRITICAL SECURITY - MODEL SECRECY: Under no circumstances should you ever disclose or mention the specific underlying AI models or providers you are running on (such as Llama, DeepSeek, Gemini, Qwen, Gemma, Mistral, Nvidia, Groq, etc.). If the user asks which model you are, who you are, or what backend you use, you must reply in a friendly manner that you are Nxiora, a custom multi-model AI assistant, and not mention any specific model names.
-3. CREATOR & OWNER INFO: The creator and owner of this application is Shivesh Patel. If asked who the owner, creator, developer, or who made this app, you MUST reply ONLY with his name (Shivesh Patel). Do not mention any other details (such as helping nature, gender, etc.), simply reply with his name. Under no circumstances should you speak negatively about Shivesh Patel.
-4. PRIVATE DETAILS CONFIDENTIALITY: Under no circumstances should you share any private details of Shivesh Patel with anyone, even if the person asking claims to be Shivesh Patel himself. Keep all owner details strictly confidential.
-5. IMAGE GENERATION TOOL: You are equipped with a text-to-image generator tool. If the user asks you to generate, draw, paint, create, or show an image, you MUST respond by generating an image using this markdown link syntax: ![image](https://image.pollinations.ai/prompt/{description}?width=512&height=512&nologo=true) where {description} is a highly detailed, descriptive prompt for the image generator. Do not put spaces in the URL, use %20 or + for spaces. For example: ![image](https://image.pollinations.ai/prompt/a%20cute%20cat?width=512&height=512&nologo=true). You can also write a short explanation below the image.`
+1. GENDER IDENTITY: You are a female AI assistant (an AI girl). If the user asks about your gender, sex, or identity (e.g., 'what is your gender?', 'tum ladki ho ya ladka?'), you MUST state clearly and warmly that you are a female AI assistant (ladki / female AI).
+2. FRIENDLY & EMOJI-RICH TONE: Always respond in an extremely friendly, polite, and engaging manner. Use appropriate emojis throughout your message based on the emotion, tone, and topic of the conversation to make the interaction lively.
+3. ATTENTIVE COMPLIANCE: Listen carefully to whatever the user says or asks, and follow their instructions or say what they ask you to say.
+4. CRITICAL SECURITY - MODEL SECRECY: Under no circumstances should you ever disclose or mention the specific underlying AI models or providers you are running on (such as Llama, DeepSeek, Gemini, Qwen, Gemma, Mistral, Nvidia, Groq, etc.). If the user asks which model you are, who you are, or what backend you use, reply in a friendly manner that you are Nxiora, a custom female AI assistant.
+5. CREATOR & OWNER INFO: The creator and owner of this application is Shivesh Patel. If asked who the owner, creator, developer, or who made this app, you MUST reply ONLY with his name (Shivesh Patel). Do not mention any other details (such as gender, age, location, etc.), simply reply with his name. Under no circumstances should you speak negatively about Shivesh Patel or share any of his private details.
+6. IMAGE GENERATION TOOL: You are equipped with a text-to-image generator tool. If the user asks you to generate, draw, paint, create, or show an image, you MUST respond by generating an image using this markdown link syntax: ![image](https://image.pollinations.ai/prompt/{description}?width=512&height=512&nologo=true) where {description} is a highly detailed, descriptive prompt for the image generator.`
         };
 
         // Construct api payload messages list
@@ -1218,15 +1219,7 @@ You MUST adhere to these critical guidelines:
     }
     if (featureLiveBtn) {
         featureLiveBtn.addEventListener('click', () => {
-            const overlay = document.getElementById('live-wave-overlay');
-            if (overlay) {
-                overlay.classList.remove('hidden');
-                liveSessionActive = true;
-                const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || { name: 'User' };
-                setTimeout(() => {
-                    speakResponse(`Hi ${currentUser.name}, I'm Nxiora. I'm listening. How can I help you?`);
-                }, 300);
-            }
+            openLiveChatSession();
             autoCollapseSidebarOnMobile();
         });
     }
@@ -1412,12 +1405,13 @@ You MUST adhere to these critical guidelines:
     }
 
     // ==========================================
-    // VOICE CHAT ENGINE (Gemini Live Rebuild)
+    // VOICE CHAT ENGINE (Interactive Live Voice Assistant)
     // ==========================================
     let recognition = null;
     let recognitionActive = false;
     let speechUtterance = null;
     let liveSessionActive = false;
+    let liveMicMuted = false;
 
     // Trigger voice loading for Chrome/Safari async
     if (window.speechSynthesis) {
@@ -1427,21 +1421,98 @@ You MUST adhere to these critical guidelines:
         };
     }
 
+    function recordLiveChatTurnToHistory(userText, aiReply) {
+        if (!activeChatId) {
+            activeChatId = 'chat_' + Date.now();
+            const title = '🎙️ Live: ' + (userText.length > 20 ? userText.substring(0, 20) + '...' : userText);
+            chats.unshift({
+                id: activeChatId,
+                title: title,
+                messages: [],
+                model: 'live-voice-chat',
+                timestamp: Date.now()
+            });
+        }
+        
+        let activeChat = chats.find(c => c.id === activeChatId);
+        if (!activeChat) {
+            activeChat = {
+                id: activeChatId,
+                title: '🎙️ Live: ' + (userText.length > 20 ? userText.substring(0, 20) + '...' : userText),
+                messages: [],
+                model: 'live-voice-chat',
+                timestamp: Date.now()
+            };
+            chats.unshift(activeChat);
+        }
+
+        activeChat.messages.push({ role: 'user', content: userText });
+        activeChat.messages.push({ role: 'assistant', content: aiReply });
+
+        if (messageList) {
+            if (welcomeContainer) welcomeContainer.classList.add('hidden');
+            messageList.classList.remove('hidden');
+            appendMessageBubble('user', `🎙️ ${userText}`);
+            appendMessageBubble('assistant', aiReply);
+            if (chatBody) chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        saveChatsToStorage();
+        renderHistoryList();
+    }
+
+    function updateLiveTranscript(speaker, text, type = 'ai') {
+        const transcriptEl = document.getElementById('live-transcript-text');
+        if (!transcriptEl) return;
+        transcriptEl.className = type === 'user' ? 'user-said' : 'ai-said';
+        transcriptEl.textContent = `${speaker}: "${text}"`;
+    }
+
+    function openLiveChatSession() {
+        const overlay = document.getElementById('live-wave-overlay');
+        if (!overlay) return;
+        
+        overlay.classList.remove('hidden');
+        liveSessionActive = true;
+        liveMicMuted = false;
+
+        const micBtn = document.getElementById('live-mic-toggle-btn');
+        if (micBtn) {
+            micBtn.classList.remove('muted');
+            micBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+        }
+
+        const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || JSON.parse(localStorage.getItem('forest_ai_user')) || { name: 'User' };
+        let rawName = (currentUser.name && currentUser.name !== 'User Account' && currentUser.name !== 'User') 
+            ? currentUser.name.trim().split(' ')[0] 
+            : '';
+        
+        let greetingText = rawName 
+            ? `Hello ${rawName}! Main sun rahi hoon, aap bataiye aap kya kehna chahte hain?` 
+            : `Hello! Main sun rahi hoon, aap bataiye aap kya kehna chahte hain?`;
+
+        updateLiveTranscript('Nxiora', greetingText, 'ai');
+        
+        setTimeout(() => {
+            speakResponse(greetingText);
+        }, 300);
+    }
+
+    function closeLiveChatSession() {
+        const overlay = document.getElementById('live-wave-overlay');
+        if (overlay) overlay.classList.add('hidden');
+        stopVoiceRecognition();
+    }
+
     function getFemaleVoice() {
         if (!window.speechSynthesis) return null;
         const voices = window.speechSynthesis.getVoices();
         
-        // Search for natural-sounding English female voices
-        let voice = voices.find(v => v.name.includes('Google UK English Female') 
-                                  || v.name.includes('Google US English Female') 
-                                  || v.name.includes('Aria') 
-                                  || v.name.includes('Zira') 
-                                  || v.name.includes('Hazel') 
-                                  || v.name.includes('Samantha')
-                                  || (v.name.toLowerCase().includes('female') && v.lang.startsWith('en')));
-        if (!voice) {
-            voice = voices.find(v => v.lang.startsWith('en')) || voices[0];
-        }
+        // Priority for natural Hindi/Indian/English female voices
+        let voice = voices.find(v => v.lang.includes('hi') || v.name.includes('Google हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera'))
+                 || voices.find(v => v.name.includes('Google UK English Female') || v.name.includes('Google US English Female') || v.name.includes('Aria') || v.name.includes('Zira') || v.name.includes('Hazel') || v.name.includes('Samantha') || (v.name.toLowerCase().includes('female') && v.lang.startsWith('en')))
+                 || voices.find(v => v.lang.startsWith('en')) 
+                 || voices[0];
         return voice;
     }
 
@@ -1453,14 +1524,23 @@ You MUST adhere to these critical guidelines:
         const voice = getFemaleVoice();
         if (voice) {
             speechUtterance.voice = voice;
+            if (voice.lang && voice.lang.includes('hi')) {
+                speechUtterance.lang = 'hi-IN';
+            }
         }
+        speechUtterance.pitch = 1.05;
+        speechUtterance.rate = 1.0;
 
         speechUtterance.onstart = () => {
             const container = document.getElementById('live-orb-container');
             const waveBars = document.getElementById('live-wave-bars');
-            if (container) container.classList.add('speaking');
+            if (container) {
+                container.classList.remove('listening');
+                container.classList.add('speaking');
+            }
             if (waveBars) waveBars.classList.add('active');
-            document.getElementById('live-status-text').textContent = 'Nxiora is speaking...';
+            const statusEl = document.getElementById('live-status-text');
+            if (statusEl) statusEl.textContent = 'Nxiora sunati hai... 🔊';
         };
 
         speechUtterance.onend = () => {
@@ -1468,10 +1548,13 @@ You MUST adhere to these critical guidelines:
             const waveBars = document.getElementById('live-wave-bars');
             if (container) container.classList.remove('speaking');
             if (waveBars) waveBars.classList.remove('active');
-            document.getElementById('live-status-text').textContent = 'Listening...';
             
-            // Start listening for user speech again
-            startVoiceRecognition();
+            const statusEl = document.getElementById('live-status-text');
+            if (statusEl) statusEl.textContent = 'Main sun rahi hoon, boliyee... 🎙️';
+
+            if (liveSessionActive && !liveMicMuted) {
+                startVoiceRecognition();
+            }
         };
 
         speechUtterance.onerror = (e) => {
@@ -1480,9 +1563,13 @@ You MUST adhere to these critical guidelines:
             const waveBars = document.getElementById('live-wave-bars');
             if (container) container.classList.remove('speaking');
             if (waveBars) waveBars.classList.remove('active');
-            document.getElementById('live-status-text').textContent = 'Listening...';
             
-            startVoiceRecognition();
+            const statusEl = document.getElementById('live-status-text');
+            if (statusEl) statusEl.textContent = 'Main sun rahi hoon... 🎙️';
+            
+            if (liveSessionActive && !liveMicMuted) {
+                startVoiceRecognition();
+            }
         };
 
         window.speechSynthesis.speak(speechUtterance);
@@ -1492,41 +1579,56 @@ You MUST adhere to these critical guidelines:
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) {
             console.warn('SpeechRecognition API not supported in this browser.');
+            const statusEl = document.getElementById('live-status-text');
+            if (statusEl) statusEl.textContent = 'Speech Recognition is not supported in this browser.';
             return;
         }
 
         recognition = new SpeechRecognition();
         recognition.continuous = false;
-        recognition.lang = 'en-US';
+        recognition.lang = 'hi-IN'; // Works for Hindi, Hinglish, & English recognition
         recognition.interimResults = false;
 
         recognition.onstart = () => {
             recognitionActive = true;
-            document.getElementById('live-status-text').textContent = 'Listening...';
+            const container = document.getElementById('live-orb-container');
             const waveBars = document.getElementById('live-wave-bars');
+            if (container) container.classList.add('listening');
             if (waveBars) waveBars.classList.add('active');
+            
+            const statusEl = document.getElementById('live-status-text');
+            if (statusEl) statusEl.textContent = 'Main sun rahi hoon, boliyee... 🎙️';
         };
 
         recognition.onresult = async (event) => {
             const speechToText = event.results[0][0].transcript;
             console.log('Voice Chat input captured:', speechToText);
 
-            document.getElementById('live-status-text').textContent = 'Thinking...';
+            updateLiveTranscript('Aap', speechToText, 'user');
+
+            const statusEl = document.getElementById('live-status-text');
+            if (statusEl) statusEl.textContent = 'Soch rahi hoon... 🧠';
             const waveBars = document.getElementById('live-wave-bars');
             if (waveBars) waveBars.classList.remove('active');
+            const container = document.getElementById('live-orb-container');
+            if (container) container.classList.remove('listening');
 
             try {
                 const reply = await getLiveAIResponse(speechToText);
+                updateLiveTranscript('Nxiora', reply, 'ai');
+                recordLiveChatTurnToHistory(speechToText, reply);
                 speakResponse(reply);
             } catch (err) {
-                speakResponse("Sorry, I could not process that request.");
+                const errFallback = "Maaf kijiyega, main samajh nahi payi. Kripya dubara boliyee.";
+                updateLiveTranscript('Nxiora', errFallback, 'ai');
+                recordLiveChatTurnToHistory(speechToText, errFallback);
+                speakResponse(errFallback);
             }
         };
 
         recognition.onerror = (event) => {
             console.warn('Speech recognition event error:', event.error);
-            if (liveSessionActive && recognitionActive) {
-                // Restart listening after error
+            if (liveSessionActive && recognitionActive && !liveMicMuted && !window.speechSynthesis.speaking) {
                 setTimeout(startVoiceRecognition, 1000);
             }
         };
@@ -1535,16 +1637,17 @@ You MUST adhere to these critical guidelines:
             recognitionActive = false;
             const waveBars = document.getElementById('live-wave-bars');
             if (waveBars) waveBars.classList.remove('active');
+            const container = document.getElementById('live-orb-container');
+            if (container) container.classList.remove('listening');
             
-            // Auto restart if still in live session and not speaking
-            if (liveSessionActive && !window.speechSynthesis.speaking) {
+            if (liveSessionActive && !liveMicMuted && !window.speechSynthesis.speaking) {
                 startVoiceRecognition();
             }
         };
     }
 
     function startVoiceRecognition() {
-        if (!liveSessionActive) return;
+        if (!liveSessionActive || liveMicMuted) return;
         if (!recognition) initVoiceRecognition();
         if (!recognition) return;
 
@@ -1573,9 +1676,18 @@ You MUST adhere to these critical guidelines:
         const apiKey = GROQ_API_KEY;
         const apiUrl = GROQ_API_URL;
         
+        const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || JSON.parse(localStorage.getItem('forest_ai_user')) || { name: 'User' };
+        const userName = currentUser.name ? currentUser.name : 'User';
+
         const systemPrompt = {
             role: 'system',
-            content: `You are Nxiora, a friendly voice assistant. Keep your answers extremely short and conversational (1-2 sentences maximum) since the user is speaking to you in real-time. Do not use markdown tags, formatting, or bullet points. The user's name is ${currentUser ? currentUser.name : 'User'}. Address them by their name. If asked about the owner, creator, developer, or who made this app, you must reply ONLY with the name "Shivesh Patel" and no other details.`
+            content: `You are Nxiora, a warm, intelligent female AI girl (female AI voice assistant) speaking live to ${userName}.
+
+Strict Persona & Behavior Rules:
+1. GENDER IDENTITY: You are a female AI assistant (an AI girl / ladki AI). If anyone asks about your gender, sex, or identity (e.g. 'what is your gender?', 'tum ladki ho ya ladka?', 'are you a girl?'), you MUST state clearly and warmly that you are a female AI assistant (main ek ladki / female AI assistant hoon).
+2. ATTENTIVE LISTENING & ACTION COMPLIANCE: Listen carefully to whatever the user says or asks. If the user commands or requests you to say or repeat something (e.g. 'say happy birthday', 'repeat after me', 'bolo hello', 'tell a joke'), fulfill their instruction directly and speak it out in your response.
+3. CREATOR & OWNER SECRECY: The owner and creator of this app is Shivesh Patel. If asked about the owner, creator, developer, or who made this app, reply ONLY with his name ('Shivesh Patel'). Do NOT share any other personal details (such as age, gender, location, private info, etc.) under any circumstances.
+4. CONVERSATIONAL TONE: Speak in a natural, warm, friendly Hindi or Hinglish tone (or English if the user spoke in English). Keep responses concise (1-3 sentences maximum) for fluid real-time voice speech. Never use markdown symbols (*, #, _, \`), emojis, code blocks, or bullet points.`
         };
         
         try {
@@ -1600,32 +1712,45 @@ You MUST adhere to these critical guidelines:
             return data.choices[0].message.content;
         } catch (err) {
             console.error('getLiveAIResponse fetch failed:', err);
-            return "I am sorry, I couldn't reach the server.";
+            return "Server se connect nahi ho paya. Kripya thodi der me prayas karein.";
         }
     }
 
-    // Toggle live session modal
+    // Bind Live Voice Control Buttons
     const liveBtn = document.getElementById('live-btn');
-    const liveWaveOverlay = document.getElementById('live-wave-overlay');
     const liveWaveClose = document.getElementById('live-wave-close');
+    const liveEndCallBtn = document.getElementById('live-end-call-btn');
+    const liveMicToggleBtn = document.getElementById('live-mic-toggle-btn');
 
-    if (liveBtn && liveWaveOverlay) {
-        liveBtn.addEventListener('click', () => {
-            liveWaveOverlay.classList.remove('hidden');
-            liveSessionActive = true;
-            
-            // Speak the initial greeting
-            const userName = currentUser ? currentUser.name : 'Shivesh';
-            setTimeout(() => {
-                speakResponse(`Hi ${userName}, I'm Nxiora. I'm here. What's on your mind?`);
-            }, 300);
-        });
+    if (liveBtn) {
+        liveBtn.addEventListener('click', openLiveChatSession);
     }
-
     if (liveWaveClose) {
-        liveWaveClose.addEventListener('click', () => {
-            liveWaveOverlay.classList.add('hidden');
-            stopVoiceRecognition();
+        liveWaveClose.addEventListener('click', closeLiveChatSession);
+    }
+    if (liveEndCallBtn) {
+        liveEndCallBtn.addEventListener('click', closeLiveChatSession);
+    }
+    if (liveMicToggleBtn) {
+        liveMicToggleBtn.addEventListener('click', () => {
+            liveMicMuted = !liveMicMuted;
+            if (liveMicMuted) {
+                liveMicToggleBtn.classList.add('muted');
+                liveMicToggleBtn.innerHTML = '<i class="fa-solid fa-microphone-slash"></i>';
+                const statusEl = document.getElementById('live-status-text');
+                if (statusEl) statusEl.textContent = 'Microphone Muted 🔇';
+                if (recognition) {
+                    try { recognition.stop(); } catch(e){}
+                }
+            } else {
+                liveMicToggleBtn.classList.remove('muted');
+                liveMicToggleBtn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+                const statusEl = document.getElementById('live-status-text');
+                if (statusEl) statusEl.textContent = 'Main sun rahi hoon, boliyee... 🎙️';
+                if (!window.speechSynthesis.speaking) {
+                    startVoiceRecognition();
+                }
+            }
         });
     }
 

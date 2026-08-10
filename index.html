@@ -258,26 +258,54 @@
     <!-- Hidden file input for uploads -->
     <input type="file" id="gallery-file-input" accept="image/*,video/*" multiple style="display: none;">
 
-    <!-- Gemini Live Overlay Waveform (hidden by default) -->
+    <!-- Live Voice Chat Overlay (hidden by default) -->
     <div class="live-wave-overlay hidden" id="live-wave-overlay">
-        <!-- Floating Close Button -->
-        <button class="live-close-btn" id="live-wave-close" title="Close Live Session">
-            <i class="fa-solid fa-xmark"></i>
-        </button>
-
-        <!-- Centered Glowing Orb Container -->
-        <div class="live-orb-container" id="live-orb-container">
-            <div class="live-orb-glow"></div>
-            <img src="live-orb.jpg" alt="Live Orb" class="live-orb-img" id="live-orb-img">
+        <!-- Top Control Bar -->
+        <div class="live-overlay-header">
+            <div class="live-badge">
+                <span class="live-dot"></span> LIVE CHAT
+            </div>
+            <button class="live-close-btn" id="live-wave-close" title="Close Live Session">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
 
-        <!-- Speech Status Indicator -->
+        <!-- Centered Organic Morphing Blue Bubble Container -->
+        <div class="live-orb-container" id="live-orb-container">
+            <div class="live-blue-glow-aura"></div>
+            <div class="live-blue-bubble-ring"></div>
+            <div class="live-blue-bubble-main" id="live-blue-bubble">
+                <div class="bubble-core-light"></div>
+                <div class="bubble-wave-layer layer1"></div>
+                <div class="bubble-wave-layer layer2"></div>
+            </div>
+        </div>
+
+        <!-- Speech Status Indicator & Equalizer Wave -->
         <div class="live-status-container">
             <p id="live-status-text">Nxiora is listening...</p>
             <div class="live-wave-bars" id="live-wave-bars">
                 <span></span>
                 <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
             </div>
+        </div>
+
+        <!-- Realtime Live Speech Transcript Display Box -->
+        <div class="live-transcript-box" id="live-transcript-box">
+            <p class="transcript-placeholder" id="live-transcript-text">Listening for your voice...</p>
+        </div>
+
+        <!-- Interactive Control Toolbar -->
+        <div class="live-controls-bar">
+            <button class="live-control-btn mic-btn" id="live-mic-toggle-btn" title="Mute/Unmute Microphone">
+                <i class="fa-solid fa-microphone"></i>
+            </button>
+            <button class="live-control-btn end-call-btn" id="live-end-call-btn" title="End Live Voice Chat">
+                <i class="fa-solid fa-phone-slash"></i>
+            </button>
         </div>
     </div>
 
