@@ -8,3 +8,10 @@
 *.webp
 *.bmp
 *.ico
+
+# Exception for logo and favicons
+!logo.jpg
+!favicon.jpg
+!favicon.png
+!favicon.ico
+
