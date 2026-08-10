@@ -37,9 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return key.trim();
     }
 
-    const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-    const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-    const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+    // All API calls go through the /api/chat Vercel serverless proxy.
+    // This keeps API keys secure on the server and avoids CORS issues.
+    const PROXY_API_URL = '/api/chat';
 
     // Global Multi-Model Routing Definitions
     const ALL_MODELS = [
@@ -1036,30 +1036,13 @@ You MUST adhere to these critical guidelines:
             
             console.log(`Routing query to model: ${selectedModel} via ${provider} (Attempt ${attempt + 1})`);
             
-            apiKey = resolveApiKey(provider);
-            if (provider === 'nvidia') {
-                apiUrl = NVIDIA_API_URL;
-            } else if (provider === 'gemini') {
-                apiUrl = GEMINI_API_URL;
-            } else {
-                apiUrl = GROQ_API_URL;
-            }
-
-            if (!apiKey) {
-                console.warn(`Skipping model ${selectedModel} on ${provider}: No valid API key configured.`);
-                continue;
-            }
-
+            // Route through server-side proxy — no API keys needed in the browser
             try {
-                const requestHeaders = {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                };
-
-                response = await fetch(apiUrl, {
+                response = await fetch(PROXY_API_URL, {
                     method: 'POST',
-                    headers: requestHeaders,
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        provider: provider,
                         model: selectedModel,
                         messages: apiMessages,
                         stream: true
@@ -1690,9 +1673,6 @@ You MUST adhere to these critical guidelines:
     }
 
     async function getLiveAIResponse(userText) {
-        const apiKey = GROQ_API_KEY;
-        const apiUrl = GROQ_API_URL;
-        
         const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || JSON.parse(localStorage.getItem('forest_ai_user')) || { name: 'User' };
         const userName = currentUser.name ? currentUser.name : 'User';
 
@@ -1706,15 +1686,14 @@ Strict Persona & Behavior Rules:
 3. CREATOR & OWNER SECRECY: The owner and creator of this app is Shivesh Patel. If asked about the owner, creator, developer, or who made this app, reply ONLY with his name ('Shivesh Patel'). Do NOT share any other personal details (such as age, gender, location, private info, etc.) under any circumstances.
 4. CONVERSATIONAL TONE: Speak in a natural, warm, friendly Hindi or Hinglish tone (or English if the user spoke in English). Keep responses concise (1-3 sentences maximum) for fluid real-time voice speech. Never use markdown symbols (*, #, _, \`), emojis, code blocks, or bullet points.`
         };
-        
+
         try {
-            const response = await fetch(apiUrl, {
+            // Route through server-side proxy to avoid CORS and keep keys secure
+            const response = await fetch(PROXY_API_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    provider: 'groq',
                     model: 'llama-3.3-70b-versatile',
                     messages: [
                         systemPrompt,
