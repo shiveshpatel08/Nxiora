@@ -22,32 +22,32 @@ const AIRouter = {
 
         if (isReasoning) {
             return {
-                provider: 'nvidia',
-                model: 'deepseek-ai/deepseek-r1',
+                provider: 'groq',
+                model: 'llama-3.3-70b-versatile',
                 requires_python_env: true,
-                reason: 'Requires deep cognitive reasoning and a programmatic environment for calculation.'
+                reason: 'Requires deep cognitive reasoning and multi-step logic execution.'
             };
         } else if (isLargeContext) {
             return {
-                provider: 'gemini',
-                model: 'gemini-3.6-flash',
+                provider: 'groq',
+                model: 'llama-3.3-70b-versatile',
                 requires_python_env: false,
-                reason: 'Requires massive context window memory to ingest the codebase.'
+                reason: 'Requires large context window memory.'
             };
         } else if (isWebDev) {
             return {
-                provider: 'nvidia',
-                model: 'qwen/qwen-2.5-coder-32b',
+                provider: 'groq',
+                model: 'llama-3.3-70b-versatile',
                 requires_python_env: false,
-                reason: 'Optimized specifically for syntax generation and standard web architecture.'
+                reason: 'Optimized for syntax generation and code structure.'
             };
         } else {
             // 4. INSTANT SPEED & CHAT (Generic)
             return {
                 provider: 'groq',
-                model: 'openai/gpt-oss-120b',
+                model: 'llama-3.3-70b-versatile',
                 requires_python_env: false,
-                reason: 'Provides ultra-low latency execution speeds using the latest open flagship model on Groq LPUs.'
+                reason: 'Provides ultra-low latency execution speeds using Llama 3.3 70B on Groq LPUs.'
             };
         }
     },

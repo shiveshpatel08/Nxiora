@@ -10,78 +10,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('nxiora_theme') || 'dark';
     applyTheme(savedTheme);
 
-    // API Configurations
-    const GROQ_API_KEY = (typeof SECRETS !== 'undefined' && SECRETS.GROQ_API_KEY) || localStorage.getItem('GROQ_API_KEY') || 'YOUR_GROQ_API_KEY_HERE';
+    // Helper to dynamically resolve valid API key for a provider
+    function resolveApiKey(provider) {
+        let key = '';
+        try {
+            if (typeof SECRETS !== 'undefined' && SECRETS) {
+                if (provider === 'groq' && SECRETS.GROQ_API_KEY) key = SECRETS.GROQ_API_KEY;
+                else if (provider === 'nvidia' && SECRETS.NVIDIA_API_KEY) key = SECRETS.NVIDIA_API_KEY;
+                else if (provider === 'gemini' && SECRETS.GEMINI_API_KEY) key = SECRETS.GEMINI_API_KEY;
+            }
+        } catch (e) {}
+        try {
+            if (!key && typeof window !== 'undefined' && window.SECRETS) {
+                if (provider === 'groq' && window.SECRETS.GROQ_API_KEY) key = window.SECRETS.GROQ_API_KEY;
+                else if (provider === 'nvidia' && window.SECRETS.NVIDIA_API_KEY) key = window.SECRETS.NVIDIA_API_KEY;
+                else if (provider === 'gemini' && window.SECRETS.GEMINI_API_KEY) key = window.SECRETS.GEMINI_API_KEY;
+            }
+        } catch (e) {}
+
+        if (!key && typeof localStorage !== 'undefined') {
+            key = localStorage.getItem(`${provider.toUpperCase()}_API_KEY`) || localStorage.getItem('GROQ_API_KEY') || '';
+        }
+
+
+        if (!key || key.includes('YOUR_') || key.includes('_HERE')) return '';
+        return key.trim();
+    }
+
     const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-    const NVIDIA_API_KEY = (typeof SECRETS !== 'undefined' && SECRETS.NVIDIA_API_KEY) || localStorage.getItem('NVIDIA_API_KEY') || 'YOUR_NVIDIA_API_KEY_HERE';
     const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-    const GEMINI_API_KEY = (typeof SECRETS !== 'undefined' && SECRETS.GEMINI_API_KEY) || localStorage.getItem('GEMINI_API_KEY') || 'YOUR_GEMINI_API_KEY_HERE';
     const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
     // Global Multi-Model Routing Definitions
     const ALL_MODELS = [
         // Groq Models
         { id: 'llama-3.3-70b-versatile', provider: 'groq', tags: ['general', 'reasoning', 'large'] },
-        { id: 'meta-llama/llama-4-scout-17b-16e-instruct', provider: 'groq', tags: ['reasoning', 'general', 'smart'] },
         { id: 'llama-3.1-8b-instant', provider: 'groq', tags: ['general', 'fast'] },
-        { id: 'qwen/qwen3-32b', provider: 'groq', tags: ['code', 'math', 'reasoning'] },
-        { id: 'deepseek-ai/deepseek-r1', provider: 'groq', tags: ['reasoning', 'math', 'code'] },
+        { id: 'openai/gpt-oss-120b', provider: 'groq', tags: ['general', 'smart'] },
         { id: 'groq/compound', provider: 'groq', tags: ['general'] },
         { id: 'groq/compound-mini', provider: 'groq', tags: ['general', 'fast'] },
-        { id: 'moonshotai/kimi-k2-instruct', provider: 'groq', tags: ['general'] },
-        { id: 'whisper-large-v3-turbo', provider: 'groq', tags: ['audio'] },
 
         // Gemini Models
-        { id: 'gemini-3.5-flash', provider: 'gemini', tags: ['general', 'creative', 'fast', 'multilingual'] },
-        { id: 'gemini-2.5-flash', provider: 'gemini', tags: ['general', 'fast', 'creative'] },
-        { id: 'gemini-3.5-flash-lite', provider: 'gemini', tags: ['general', 'fast'] },
-        { id: 'gemini-3.6-flash', provider: 'gemini', tags: ['general', 'creative', 'fast'] },
-        { id: 'gemini-3.1-flash-lite', provider: 'gemini', tags: ['general', 'fast'] },
-        { id: 'gemini-omni-flash', provider: 'gemini', tags: ['general'] },
-        { id: 'gemini-3.1-flash-live-preview', provider: 'gemini', tags: ['general', 'preview'] },
-        { id: 'gemini-3.1-pro-preview', provider: 'gemini', tags: ['general', 'smart', 'reasoning'] },
-
-        // Nvidia Models
-        { id: 'deepseek-ai/deepseek-r1', provider: 'nvidia', tags: ['reasoning', 'math', 'code'] },
-        { id: 'deepseek-ai/deepseek-v3', provider: 'nvidia', tags: ['general', 'smart', 'reasoning'] },
-        { id: 'deepseek-ai/deepseek-coder-7b', provider: 'nvidia', tags: ['code'] },
-        { id: 'nvidia/llama-3.1-nemotron-51b', provider: 'nvidia', tags: ['general', 'reasoning'] },
-        { id: 'nvidia/llama-3.1-nemotron-8b', provider: 'nvidia', tags: ['general', 'fast'] },
-        { id: 'nvidia/nemotron-4-340b', provider: 'nvidia', tags: ['general', 'smart'] },
-        { id: 'minimax/minimax-m2.7', provider: 'nvidia', tags: ['general', 'fast'] },
-        { id: 'minimax/minimax-m3', provider: 'nvidia', tags: ['general'] },
-        { id: 'qwen/qwen-2.5-coder-32b', provider: 'nvidia', tags: ['code'] },
-        { id: 'qwen/qwen-2.5-72b', provider: 'nvidia', tags: ['general', 'smart', 'multilingual'] },
-        { id: 'qwen/qwen-2.5-math-72b', provider: 'nvidia', tags: ['math'] },
-        { id: 'moonshotai/kimi-k2.5', provider: 'nvidia', tags: ['general'] },
-        { id: 'moonshotai/kimi-k2.6', provider: 'nvidia', tags: ['general'] },
-        { id: 'thmz/glm-5.2-chat', provider: 'nvidia', tags: ['general', 'smart'] },
-        { id: 'thmz/glm-5.1-chat', provider: 'nvidia', tags: ['general'] },
-        { id: 'thmz/glm-4-9b', provider: 'nvidia', tags: ['general', 'fast'] },
-        { id: 'meta/llama-3.2-3b', provider: 'nvidia', tags: ['general', 'fast'] },
-        { id: 'meta/llama-3.2-11b-vision', provider: 'nvidia', tags: ['general', 'vision'] },
-        { id: 'meta/llama-3.1-8b', provider: 'nvidia', tags: ['general', 'fast'] },
-        { id: 'meta/llama-3.1-70b', provider: 'nvidia', tags: ['general', 'smart'] },
-        { id: 'meta/llama-3.1-405b', provider: 'nvidia', tags: ['general', 'smart', 'reasoning'] },
-        { id: 'google/gemma-2-9b', provider: 'nvidia', tags: ['general', 'fast'] },
-        { id: 'google/gemma-2-27b', provider: 'nvidia', tags: ['general', 'smart'] },
-        { id: 'mistralai/mistral-nemo-12b', provider: 'nvidia', tags: ['general'] },
-        { id: 'mistralai/mixtral-8x22b', provider: 'nvidia', tags: ['general', 'smart'] },
-        { id: 'mistralai/mistral-large-2', provider: 'nvidia', tags: ['general', 'smart'] },
-        { id: 'microsoft/phi-3-mini-4k', provider: 'nvidia', tags: ['general', 'fast'] },
-        { id: 'microsoft/phi-3-medium-128k', provider: 'nvidia', tags: ['general'] },
-        { id: 'gpt-oss-120b', provider: 'nvidia', tags: ['general'] },
-        { id: 'sarvam-ai/sarvam-m-indic', provider: 'nvidia', tags: ['indic', 'multilingual'] },
-        { id: 'nvidia/nemotron-3.5-asr-streaming-0.6b', provider: 'nvidia', tags: ['audio'] },
-        { id: 'nvidia/parakeet-tdt-0.6b-v3', provider: 'nvidia', tags: ['audio'] },
-        { id: 'nvidia/canary', provider: 'nvidia', tags: ['audio'] },
-        { id: 'baichuan-inc/baichuan2-13b-chat', provider: 'nvidia', tags: ['general'] },
-        { id: 'internlm/internlm2_5-20b-chat', provider: 'nvidia', tags: ['general'] },
-        { id: 'yi-34b-chat', provider: 'nvidia', tags: ['general'] },
-        { id: 'gemma-7b-it', provider: 'nvidia', tags: ['general'] },
-        { id: 'llama-3-8b-instruct', provider: 'nvidia', tags: ['general', 'fast'] },
-        { id: 'mixtral-8x7b-instruct', provider: 'nvidia', tags: ['general'] },
-        { id: 'codellama-34b-instruct', provider: 'nvidia', tags: ['code'] }
+        { id: 'gemini-2.0-flash', provider: 'gemini', tags: ['general', 'creative', 'fast'] },
+        { id: 'gemini-1.5-flash', provider: 'gemini', tags: ['general', 'fast'] },
+        { id: 'gemini-1.5-pro', provider: 'gemini', tags: ['general', 'smart', 'reasoning'] }
     ];
 
     function getCandidateModels(query) {
@@ -108,16 +80,13 @@ document.addEventListener('DOMContentLoaded', () => {
             uniqueModels.push(routedModel);
         }
 
-        // Add standard fallback model candidates in case the routed one fails
+        // Standard robust fallback candidate order (tested & verified working)
         const fallbackList = [
-            { id: 'gemini-3.5-flash', provider: 'gemini' },
             { id: 'llama-3.3-70b-versatile', provider: 'groq' },
-            { id: 'gemini-2.5-flash', provider: 'gemini' },
             { id: 'llama-3.1-8b-instant', provider: 'groq' },
-            { id: 'deepseek-ai/deepseek-r1', provider: 'nvidia' },
-            { id: 'qwen/qwen-2.5-coder-32b', provider: 'nvidia' },
-            { id: 'gemini-3.6-flash', provider: 'gemini' },
-            { id: 'openai/gpt-oss-120b', provider: 'groq' }
+            { id: 'openai/gpt-oss-120b', provider: 'groq' },
+            { id: 'gemini-2.0-flash', provider: 'gemini' },
+            { id: 'gemini-1.5-flash', provider: 'gemini' }
         ];
 
         for (const m of fallbackList) {
@@ -1057,6 +1026,8 @@ You MUST adhere to these critical guidelines:
         let selectedModel = '';
         let provider = '';
         let success = false;
+        let apiKey = '';
+        let apiUrl = '';
 
         for (let attempt = 0; attempt < candidateModels.length; attempt++) {
             const candidate = candidateModels[attempt];
@@ -1065,16 +1036,18 @@ You MUST adhere to these critical guidelines:
             
             console.log(`Routing query to model: ${selectedModel} via ${provider} (Attempt ${attempt + 1})`);
             
-            let apiKey, apiUrl;
+            apiKey = resolveApiKey(provider);
             if (provider === 'nvidia') {
-                apiKey = NVIDIA_API_KEY;
                 apiUrl = NVIDIA_API_URL;
             } else if (provider === 'gemini') {
-                apiKey = GEMINI_API_KEY;
                 apiUrl = GEMINI_API_URL;
             } else {
-                apiKey = GROQ_API_KEY;
                 apiUrl = GROQ_API_URL;
+            }
+
+            if (!apiKey) {
+                console.warn(`Skipping model ${selectedModel} on ${provider}: No valid API key configured.`);
+                continue;
             }
 
             try {
