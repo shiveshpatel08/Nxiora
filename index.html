@@ -175,6 +175,10 @@
             <!-- Topbar Navigation -->
             <div class="chat-topbar">
                 <div class="topbar-left">
+                    <!-- Mobile hamburger to toggle sidebar -->
+                    <button class="mobile-hamburger" id="mobile-hamburger" aria-label="Toggle sidebar">
+                        <i class="fas fa-bars"></i>
+                    </button>
                     <!-- Dropdown selector and version button removed to clean UI -->
                     <!-- Keep original dropdowns inside, but hidden, to avoid breaking any selectors or JS binds -->
                     <div class="api-select-wrapper" style="display: none !important;">
@@ -256,6 +260,9 @@
         </div>
 
     </div>
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div class="sidebar-backdrop hidden" id="sidebar-backdrop"></div>
 
     <!-- Hidden file input for uploads -->
     <input type="file" id="gallery-file-input" accept="image/*,video/*" multiple style="display: none;">

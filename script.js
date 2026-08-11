@@ -10,6 +10,52 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('nxiora_theme') || 'dark';
     applyTheme(savedTheme);
 
+    // ==========================================
+    // MOBILE SIDEBAR TOGGLE
+    // ==========================================
+    const mobileHamburger = document.getElementById('mobile-hamburger');
+    const sidebarEl = document.getElementById('sidebar');
+    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+
+    function openMobileSidebar() {
+        if (!sidebarEl || !sidebarBackdrop) return;
+        sidebarEl.classList.add('mobile-open');
+        sidebarEl.classList.remove('collapsed');
+        sidebarBackdrop.classList.remove('hidden');
+        document.body.classList.add('sidebar-mobile-open');
+    }
+
+    function closeMobileSidebar() {
+        if (!sidebarEl || !sidebarBackdrop) return;
+        sidebarEl.classList.remove('mobile-open');
+        sidebarEl.classList.add('collapsed');
+        sidebarBackdrop.classList.add('hidden');
+        document.body.classList.remove('sidebar-mobile-open');
+    }
+
+    if (mobileHamburger) {
+        mobileHamburger.addEventListener('click', () => {
+            if (sidebarEl && sidebarEl.classList.contains('mobile-open')) {
+                closeMobileSidebar();
+            } else {
+                openMobileSidebar();
+            }
+        });
+    }
+
+    if (sidebarBackdrop) {
+        sidebarBackdrop.addEventListener('click', () => {
+            closeMobileSidebar();
+        });
+    }
+
+    // Auto-close sidebar on mobile when a chat is selected
+    document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 && e.target.closest('.history-item')) {
+            closeMobileSidebar();
+        }
+    });
+
     // Helper to dynamically resolve valid API key for a provider
     function resolveApiKey(provider) {
         let key = '';
