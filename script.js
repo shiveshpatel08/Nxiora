@@ -80,13 +80,14 @@ document.addEventListener('DOMContentLoaded', () => {
             uniqueModels.push(routedModel);
         }
 
-        // Standard robust fallback candidate order (tested & verified working)
+        // Standard robust fallback candidate order (cross-provider auto-switch)
         const fallbackList = [
             { id: 'llama-3.3-70b-versatile', provider: 'groq' },
             { id: 'llama-3.1-8b-instant', provider: 'groq' },
             { id: 'openai/gpt-oss-120b', provider: 'groq' },
             { id: 'gemini-2.0-flash', provider: 'gemini' },
-            { id: 'gemini-1.5-flash', provider: 'gemini' }
+            { id: 'gemini-1.5-flash', provider: 'gemini' },
+            { id: 'meta/llama-3.3-70b-instruct', provider: 'nvidia' }
         ];
 
         for (const m of fallbackList) {
@@ -1022,23 +1023,24 @@ You MUST adhere to these critical guidelines:
         // Determine candidate models based on query routing
         const candidateModels = getCandidateModels(messageText);
         
-        let response = null;
         let selectedModel = '';
         let provider = '';
+        let completeResponse = '';
         let success = false;
-        let apiKey = '';
-        let apiUrl = '';
 
         for (let attempt = 0; attempt < candidateModels.length; attempt++) {
             const candidate = candidateModels[attempt];
             selectedModel = candidate.id;
             provider = candidate.provider;
             
-            console.log(`Routing query to model: ${selectedModel} via ${provider} (Attempt ${attempt + 1})`);
+            console.log(`Routing query to model: ${selectedModel} via ${provider} (Attempt ${attempt + 1}/${candidateModels.length})`);
             
-            // Route through server-side proxy — no API keys needed in the browser
+            if (attempt > 0) {
+                showToast(`Primary model unavailable. Auto-switching to ${selectedModel}...`, 'warning');
+            }
+            
             try {
-                response = await fetch(PROXY_API_URL, {
+                const response = await fetch(PROXY_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1049,91 +1051,91 @@ You MUST adhere to these critical guidelines:
                     })
                 });
 
-                if (response.ok) {
-                    success = true;
-                    break;
-                } else {
+                if (!response.ok) {
                     const errText = await response.text().catch(() => '');
                     console.warn(`Model ${selectedModel} on ${provider} failed with status ${response.status}: ${errText}`);
+                    continue; // Auto-switch to next candidate model
                 }
+
+                // Clear loading placeholder on first stream chunk read
+                aiBubble.innerHTML = '';
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let tempResponse = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    
+                    // Keep partial line in buffer
+                    buffer = lines.pop();
+
+                    for (const line of lines) {
+                        const cleanLine = line.trim();
+                        if (!cleanLine) continue;
+                        if (cleanLine === 'data: [DONE]') break;
+
+                        if (cleanLine.startsWith('data: ')) {
+                            try {
+                                const parsed = JSON.parse(cleanLine.slice(6));
+                                const textToken = parsed.choices?.[0]?.delta?.content || '';
+                                if (textToken) {
+                                    tempResponse += textToken;
+                                    aiBubble.innerHTML = parseMarkdown(tempResponse.trim());
+                                    chatBody.scrollTop = chatBody.scrollHeight;
+                                }
+                            } catch (err) {
+                                console.error('Error parsing token', err);
+                            }
+                        }
+                    }
+                }
+
+                if (tempResponse.trim().length > 0) {
+                    completeResponse = tempResponse;
+                    success = true;
+                    break; // Successfully got response!
+                } else {
+                    console.warn(`Model ${selectedModel} on ${provider} returned empty stream. Trying next model...`);
+                }
+
             } catch (err) {
-                console.warn(`Fetch error for model ${selectedModel} on ${provider}:`, err);
+                console.warn(`Fetch/Stream error for model ${selectedModel} on ${provider}:`, err);
             }
         }
 
-        if (!success || !response) {
-            aiBubble.innerHTML = `<span style="color: #ef4444;"><i class="fas fa-exclamation-triangle"></i> Error: All configured models failed to respond. Please check your API keys and network connection.</span>`;
+        if (!success || !completeResponse.trim()) {
+            aiBubble.innerHTML = `<span style="color: #ef4444;"><i class="fas fa-exclamation-triangle"></i> Error: All configured models failed to respond. Please check network connection.</span>`;
             showToast("All models failed to respond.", "error");
             return;
         }
 
-        try {
-            // Clear loading placeholder
-            aiBubble.innerHTML = '';
+        // Store result in chat data session & storage
+        const isVideoReq = messageText.toLowerCase().includes('video');
+        if (isVideoReq) {
+            const videoUrl = 'https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4';
+            // Append simulated video markdown to assistant message content so it displays a nice loop
+            const videoHtml = `\n\nCheckout your generated video below! It has also been saved to your sidebar Videos Gallery. 🎬\n\n[video](${videoUrl})`;
+            completeResponse += videoHtml;
+            aiBubble.innerHTML = parseMarkdown(completeResponse.trim());
             
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let buffer = '';
-            let completeResponse = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                
-                // Keep partial line in buffer
-                buffer = lines.pop();
-
-                for (const line of lines) {
-                    const cleanLine = line.trim();
-                    if (!cleanLine) continue;
-                    if (cleanLine === 'data: [DONE]') break;
-
-                    if (cleanLine.startsWith('data: ')) {
-                        try {
-                            const parsed = JSON.parse(cleanLine.slice(6));
-                            const textToken = parsed.choices[0].delta.content || '';
-                            if (textToken) {
-                                completeResponse += textToken;
-                                aiBubble.innerHTML = parseMarkdown(completeResponse.trim());
-                                chatBody.scrollTop = chatBody.scrollHeight;
-                            }
-                        } catch (err) {
-                            console.error('Error parsing token', err);
-                        }
-                    }
-                }
+            // Automatically save to Video Gallery
+            if (!galleryVideos.includes(videoUrl)) {
+                galleryVideos.unshift(videoUrl);
+                localStorage.setItem('nxiora_gallery_videos', JSON.stringify(galleryVideos));
             }
-
-            // Store result in chat data session & storage
-            const isVideoReq = messageText.toLowerCase().includes('video');
-            if (isVideoReq) {
-                const videoUrl = 'https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1611-large.mp4';
-                // Append simulated video markdown to assistant message content so it displays a nice loop
-                const videoHtml = `\n\nCheckout your generated video below! It has also been saved to your sidebar Videos Gallery. 🎬\n\n[video](${videoUrl})`;
-                completeResponse += videoHtml;
-                aiBubble.innerHTML = parseMarkdown(completeResponse.trim());
-                
-                // Automatically save to Video Gallery
-                if (!galleryVideos.includes(videoUrl)) {
-                    galleryVideos.unshift(videoUrl);
-                    localStorage.setItem('nxiora_gallery_videos', JSON.stringify(galleryVideos));
-                }
-            }
-
-            activeChat.messages.push({ role: 'assistant', content: completeResponse.trim() });
-            activeChat.timestamp = Date.now();
-            activeChat.model = selectedModel;
-            saveChatsToStorage();
-            renderHistoryList();
-
-        } catch (err) {
-            console.error('Streaming response error:', err);
-            aiBubble.innerHTML = `<span style="color: #ef4444;"><i class="fas fa-exclamation-triangle"></i> Error: ${escapeHtml(err.message)}</span>`;
-            showToast(err.message, 'error');
         }
+
+        activeChat.messages.push({ role: 'assistant', content: completeResponse.trim() });
+        activeChat.timestamp = Date.now();
+        activeChat.model = selectedModel;
+        saveChatsToStorage();
+        renderHistoryList();
     }
 
     // Submit Triggers
@@ -1687,29 +1689,35 @@ Strict Persona & Behavior Rules:
 4. CONVERSATIONAL TONE: Speak in a natural, warm, friendly Hindi or Hinglish tone (or English if the user spoke in English). Keep responses concise (1-3 sentences maximum) for fluid real-time voice speech. Never use markdown symbols (*, #, _, \`), emojis, code blocks, or bullet points.`
         };
 
-        try {
-            // Route through server-side proxy to avoid CORS and keep keys secure
-            const response = await fetch(PROXY_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    provider: 'groq',
-                    model: 'llama-3.3-70b-versatile',
-                    messages: [
-                        systemPrompt,
-                        { role: 'user', content: userText }
-                    ],
-                    stream: false
-                })
-            });
-            
-            if (!response.ok) throw new Error('API error');
-            const data = await response.json();
-            return data.choices[0].message.content;
-        } catch (err) {
-            console.error('getLiveAIResponse fetch failed:', err);
-            return "Server se connect nahi ho paya. Kripya thodi der me prayas karein.";
+        const candidateModels = getCandidateModels(userText);
+        for (const candidate of candidateModels) {
+            try {
+                const response = await fetch(PROXY_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: candidate.provider,
+                        model: candidate.id,
+                        messages: [
+                            systemPrompt,
+                            { role: 'user', content: userText }
+                        ],
+                        stream: false
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const text = data.choices?.[0]?.message?.content;
+                    if (text && text.trim()) {
+                        return text.trim();
+                    }
+                }
+            } catch (err) {
+                console.warn(`getLiveAIResponse fetch failed for model ${candidate.id}:`, err);
+            }
         }
+        return "Server se connect nahi ho paya. Kripya thodi der me prayas karein.";
     }
 
     // Bind Live Voice Control Buttons
