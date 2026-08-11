@@ -888,16 +888,18 @@ body.chat-visible .chat-section {
     min-width: 0;
 }
 
-/* Top Navigation Bar */
+/* Top Navigation Bar - Desktop: hidden (no content), Mobile: shows hamburger */
 .chat-topbar {
-    height: 60px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    height: 0;
+    overflow: hidden;
+    border-bottom: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 24px;
+    padding: 0;
     background: var(--topbar-bg);
     flex-shrink: 0;
+    transition: height 0.2s ease, padding 0.2s ease;
 }
 
 .topbar-left {
@@ -1623,10 +1625,12 @@ code.inline-code {
         padding: 20px 14px;
     }
 
-    /* Topbar adjustments */
+    /* Topbar: show on mobile with hamburger */
     .chat-topbar {
+        height: 52px;
+        overflow: visible;
         padding: 0 14px;
-        height: 56px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     }
 
     /* Message list narrower on mobile */
@@ -2576,20 +2580,20 @@ body.chat-visible .chat-main {
     transform: translate(2px, -2px);
 }
 
-/* 4. Sleek Pill-Shaped Input Panel */
+/* 4. Sleek Pill-Shaped Input Panel - Flex Column for preview + row */
 .input-panel-pill {
-    display: flex;
-    align-items: center;
+    display: flex !important;
+    flex-direction: column !important;
     background: #1e2025 !important;
     border-radius: 28px !important;
-    padding: 6px 6px 6px 16px !important;
+    padding: 0 !important;
     width: 100% !important;
     max-width: 680px !important;
     margin: 0 auto !important;
     border: 1px solid rgba(255, 255, 255, 0.04) !important;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
     transition: border-radius 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
-    min-height: 52px !important;
+    overflow: hidden !important;
 }
 
 .input-panel-pill:focus-within {
@@ -2597,10 +2601,96 @@ body.chat-visible .chat-main {
     box-shadow: 0 0 16px rgba(0, 210, 255, 0.08) !important;
 }
 
-.input-panel-pill.multiline {
-    border-radius: 24px !important;
-    align-items: flex-end !important;
-    padding: 10px 10px 10px 16px !important;
+/* Upload preview strip (thumbnails shown above input row) */
+.upload-preview-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 14px 6px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.upload-preview-thumb {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid rgba(56, 239, 125, 0.25);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    animation: thumbFadeIn 0.25s ease;
+}
+
+@keyframes thumbFadeIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.upload-preview-thumb img,
+.upload-preview-thumb video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.upload-preview-thumb .thumb-remove-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: rgba(0, 0, 0, 0.75);
+    border: none;
+    color: #ffffff;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 9px;
+    transition: background 0.2s ease;
+    z-index: 5;
+}
+
+.upload-preview-thumb .thumb-remove-btn:hover {
+    background: #ef4444;
+}
+
+/* Input pill bottom row */
+.input-pill-row {
+    display: flex;
+    align-items: center;
+    padding: 6px 6px 6px 16px;
+    min-height: 52px;
+}
+
+.input-panel-pill.multiline .input-pill-row {
+    align-items: flex-end;
+    padding-bottom: 10px;
+}
+
+/* Live Chat button in input bar */
+.live-chat-btn-pill {
+    background: transparent !important;
+    border: none !important;
+    color: rgba(56, 239, 125, 0.8) !important;
+    font-size: 17px !important;
+    cursor: pointer !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    transition: color 0.2s ease, background 0.2s ease !important;
+    flex-shrink: 0 !important;
+}
+
+.live-chat-btn-pill:hover {
+    color: #38ef7d !important;
+    background: rgba(56, 239, 125, 0.08) !important;
 }
 
 .upload-btn-pill {

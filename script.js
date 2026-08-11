@@ -206,6 +206,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 800);
     }
 
+    // Instant switch for session restore (no animation delay)
+    function restoreSessionToChat() {
+        const loginSection = document.getElementById('login-section');
+        const chatSection = document.getElementById('chat-section');
+        if (loginSection) loginSection.classList.add('hidden');
+        if (chatSection) chatSection.classList.remove('hidden');
+        document.body.classList.remove('login-view');
+        document.body.classList.add('chat-view');
+        document.body.classList.add('chat-visible');
+        initializeChatSystem();
+    }
+
+    // ==========================================
+    // AUTO-LOGIN: Restore session on page load
+    // ==========================================
+    const existingSession = localStorage.getItem('forest_ai_current_user');
+    if (existingSession) {
+        try {
+            const sessionUser = JSON.parse(existingSession);
+            if (sessionUser && sessionUser.gmail) {
+                // Valid session found — skip login screen
+                restoreSessionToChat();
+            }
+        } catch (e) {
+            // Corrupted session — clear it
+            localStorage.removeItem('forest_ai_current_user');
+        }
+    }
+
     // Login Form Submit Action
     loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -504,6 +533,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Logout Action (Slide Back to Login)
     logoutBtn.addEventListener('click', () => {
+        // Clear persisted session so refresh won't auto-login
+        localStorage.removeItem('forest_ai_current_user');
+
         document.body.classList.remove('chat-visible');
         document.body.classList.remove('chat-view');
         document.body.classList.add('login-view');
@@ -987,6 +1019,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (voiceBtn) voiceBtn.style.display = 'flex';
         if (liveBtn) liveBtn.style.display = 'flex';
 
+        // Clear upload previews after send
+        if (typeof pendingUploads !== 'undefined') {
+            pendingUploads = [];
+        }
+        const previewStrip = document.getElementById('upload-preview-strip');
+        if (previewStrip) {
+            previewStrip.style.display = 'none';
+            previewStrip.innerHTML = '';
+        }
+
         const pillContainer = document.querySelector('.input-panel-pill');
         if (pillContainer) pillContainer.classList.remove('multiline');
 
@@ -1234,9 +1276,57 @@ You MUST adhere to these critical guidelines:
         });
     }
 
-    // Hidden File Input triggers
+    // ==========================================
+    // FILE UPLOAD WITH INPUT PREVIEW
+    // ==========================================
     const uploadTriggerBtn = document.getElementById('upload-trigger-btn');
     const galleryFileInput = document.getElementById('gallery-file-input');
+    const uploadPreviewStrip = document.getElementById('upload-preview-strip');
+
+    // Store pending uploaded files for preview
+    let pendingUploads = []; // Array of { dataUrl, type: 'image'|'video', name }
+
+    function renderUploadPreviews() {
+        if (!uploadPreviewStrip) return;
+        if (pendingUploads.length === 0) {
+            uploadPreviewStrip.style.display = 'none';
+            uploadPreviewStrip.innerHTML = '';
+            return;
+        }
+        uploadPreviewStrip.style.display = 'flex';
+        uploadPreviewStrip.innerHTML = '';
+
+        pendingUploads.forEach((item, index) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'upload-preview-thumb';
+
+            if (item.type === 'image') {
+                const img = document.createElement('img');
+                img.src = item.dataUrl;
+                img.alt = item.name;
+                thumb.appendChild(img);
+            } else {
+                const vid = document.createElement('video');
+                vid.src = item.dataUrl;
+                vid.muted = true;
+                vid.playsInline = true;
+                thumb.appendChild(vid);
+            }
+
+            // Remove (X) button
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'thumb-remove-btn';
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.title = 'Remove';
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                pendingUploads.splice(index, 1);
+                renderUploadPreviews();
+            });
+            thumb.appendChild(removeBtn);
+            uploadPreviewStrip.appendChild(thumb);
+        });
+    }
 
     if (uploadTriggerBtn && galleryFileInput) {
         uploadTriggerBtn.addEventListener('click', () => {
@@ -1260,9 +1350,11 @@ You MUST adhere to these critical guidelines:
                         const dataUrl = event.target.result;
                         if (file.type.startsWith('image/')) {
                             galleryImages.unshift(dataUrl);
+                            pendingUploads.push({ dataUrl, type: 'image', name: file.name });
                             uploadedCount++;
                         } else if (file.type.startsWith('video/')) {
                             galleryVideos.unshift(dataUrl);
+                            pendingUploads.push({ dataUrl, type: 'video', name: file.name });
                             videoCount++;
                         }
                         resolve();
@@ -1274,24 +1366,37 @@ You MUST adhere to these critical guidelines:
             }
             
             Promise.all(fileLoads).then(() => {
+                // Save to gallery localStorage
                 localStorage.setItem('nxiora_gallery_images', JSON.stringify(galleryImages));
                 localStorage.setItem('nxiora_gallery_videos', JSON.stringify(galleryVideos));
                 
+                // Update gallery view if open
                 if (activeGalleryType) {
                     renderGallery();
                 }
                 
+                // Show previews in input bar
+                renderUploadPreviews();
+                
                 let msg = '';
                 if (uploadedCount > 0 && videoCount > 0) {
-                     msg = `Saved ${uploadedCount} photos & ${videoCount} videos to Galleries! 📁`;
+                     msg = `${uploadedCount} photo${uploadedCount > 1 ? 's' : ''} & ${videoCount} video${videoCount > 1 ? 's' : ''} attached! 📎`;
                 } else if (uploadedCount > 0) {
-                     msg = `Saved ${uploadedCount} photos to Images Gallery! 🎨`;
+                     msg = `${uploadedCount} photo${uploadedCount > 1 ? 's' : ''} attached! 🎨`;
                 } else if (videoCount > 0) {
-                     msg = `Saved ${videoCount} videos to Videos Gallery! 🎬`;
+                     msg = `${videoCount} video${videoCount > 1 ? 's' : ''} attached! 🎬`;
                 }
                 showToast(msg, 'success');
                 galleryFileInput.value = '';
             });
+        });
+    }
+
+    // Live Chat Input Bar Button
+    const liveChatInputBtn = document.getElementById('live-chat-input-btn');
+    if (liveChatInputBtn) {
+        liveChatInputBtn.addEventListener('click', () => {
+            openLiveChatSession();
         });
     }
 

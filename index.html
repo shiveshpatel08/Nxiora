@@ -127,10 +127,6 @@
                         <i class="fa-regular fa-image"></i>
                         <span>Images</span>
                     </li>
-                    <li class="feature-item" id="feature-live-chat">
-                        <i class="fa-solid fa-headset"></i>
-                        <span>Live Chat</span>
-                    </li>
                     <li class="feature-item" id="feature-projects">
                         <i class="fa-regular fa-folder-open"></i>
                         <span>Projects</span>
@@ -172,8 +168,8 @@
 
         <!-- 2. Main Chat Panel (On the Right) -->
         <div class="chat-main" id="chat-main">
-            <!-- Topbar Navigation -->
-            <div class="chat-topbar">
+            <!-- Topbar Navigation (Only for mobile hamburger) -->
+            <div class="chat-topbar" id="chat-topbar">
                 <div class="topbar-left">
                     <!-- Mobile hamburger to toggle sidebar -->
                     <button class="mobile-hamburger" id="mobile-hamburger" aria-label="Toggle sidebar">
@@ -229,28 +225,39 @@
                 </div>
             </div>
             
-            <!-- Bottom Chat Input Footer (Cleaned - No file attachment) -->
+            <!-- Bottom Chat Input Footer -->
             <div class="chat-footer">
-                <div class="input-panel-pill">
-                    <!-- Plus Upload Trigger -->
-                    <button type="button" class="upload-btn-pill" id="upload-trigger-btn" title="Upload Photo/Video">
-                        <i class="fa-solid fa-plus"></i>
-                    </button>
-                    
-                    <!-- Text input area -->
-                    <textarea id="chat-input" placeholder="Ask anything" rows="1"></textarea>
-                    
-                    <!-- Right Actions Wrapper -->
-                    <div class="input-actions-right">
-                        <!-- Voice Button -->
-                        <button type="button" class="voice-btn-pill" id="voice-btn-pill" title="Voice Input">
-                            <i class="fa-solid fa-microphone"></i>
+                <div class="input-panel-pill" id="input-panel-pill">
+                    <!-- Upload Preview Strip (shown when files are attached) -->
+                    <div class="upload-preview-strip" id="upload-preview-strip" style="display:none;"></div>
+
+                    <!-- Bottom row: Plus, textarea, actions -->
+                    <div class="input-pill-row">
+                        <!-- Plus Upload Trigger -->
+                        <button type="button" class="upload-btn-pill" id="upload-trigger-btn" title="Upload Photo/Video">
+                            <i class="fa-solid fa-plus"></i>
                         </button>
                         
-                        <!-- Send Circular Button (Hidden by default, shown when text exists) -->
-                        <button type="submit" class="send-btn-circle-new hidden" id="send-btn" disabled title="Send message">
-                            <i class="fa-solid fa-arrow-up"></i>
-                        </button>
+                        <!-- Text input area -->
+                        <textarea id="chat-input" placeholder="Ask anything" rows="1"></textarea>
+                        
+                        <!-- Right Actions Wrapper -->
+                        <div class="input-actions-right">
+                            <!-- Live Chat Button -->
+                            <button type="button" class="live-chat-btn-pill" id="live-chat-input-btn" title="Live Voice Chat">
+                                <i class="fa-solid fa-headset"></i>
+                            </button>
+
+                            <!-- Voice Button -->
+                            <button type="button" class="voice-btn-pill" id="voice-btn-pill" title="Voice Input">
+                                <i class="fa-solid fa-microphone"></i>
+                            </button>
+                            
+                            <!-- Send Circular Button (Hidden by default, shown when text exists) -->
+                            <button type="submit" class="send-btn-circle-new hidden" id="send-btn" disabled title="Send message">
+                                <i class="fa-solid fa-arrow-up"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="footer-info">
