@@ -10,36 +10,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('nxiora_theme') || 'dark';
     applyTheme(savedTheme);
 
-    // ==========================================
-    // MOBILE SIDEBAR TOGGLE
-    // ==========================================
     const mobileHamburger = document.getElementById('mobile-hamburger');
+    const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
     const sidebarEl = document.getElementById('sidebar');
     const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 
     function openMobileSidebar() {
-        if (!sidebarEl || !sidebarBackdrop) return;
+        if (!sidebarEl) return;
         sidebarEl.classList.add('mobile-open');
         sidebarEl.classList.remove('collapsed');
-        sidebarBackdrop.classList.remove('hidden');
+        if (sidebarBackdrop) sidebarBackdrop.classList.remove('hidden');
         document.body.classList.add('sidebar-mobile-open');
     }
 
     function closeMobileSidebar() {
-        if (!sidebarEl || !sidebarBackdrop) return;
+        if (!sidebarEl) return;
         sidebarEl.classList.remove('mobile-open');
         sidebarEl.classList.add('collapsed');
-        sidebarBackdrop.classList.add('hidden');
+        if (sidebarBackdrop) sidebarBackdrop.classList.add('hidden');
         document.body.classList.remove('sidebar-mobile-open');
     }
 
     if (mobileHamburger) {
-        mobileHamburger.addEventListener('click', () => {
+        mobileHamburger.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (sidebarEl && sidebarEl.classList.contains('mobile-open')) {
                 closeMobileSidebar();
             } else {
                 openMobileSidebar();
             }
+        });
+    }
+
+    if (mobileSidebarClose) {
+        mobileSidebarClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeMobileSidebar();
         });
     }
 

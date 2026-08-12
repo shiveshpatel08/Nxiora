@@ -116,6 +116,9 @@
             <div class="sidebar-header">
                 <img src="logo.jpg" alt="Nxiora Logo" class="sidebar-logo sidebar-content">
                 <span class="sidebar-title sidebar-content">Nxiora</span>
+                <button type="button" class="mobile-sidebar-close" id="mobile-sidebar-close" title="Close menu">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
             </div>
             
             <button class="new-chat-btn sidebar-content" id="new-chat-btn">
@@ -176,8 +179,12 @@
                 <div class="topbar-left">
                     <!-- Mobile hamburger to toggle sidebar -->
                     <button class="mobile-hamburger" id="mobile-hamburger" aria-label="Toggle sidebar">
-                        <i class="fas fa-bars"></i>
+                        <i class="fa-solid fa-bars-staggered"></i>
                     </button>
+                    <div class="mobile-brand-title">
+                        <img src="logo.jpg" alt="Nxiora Logo" class="mobile-brand-logo">
+                        <span>Nxiora</span>
+                    </div>
                     <!-- Dropdown selector and version button removed to clean UI -->
                     <!-- Keep original dropdowns inside, but hidden, to avoid breaking any selectors or JS binds -->
                     <div class="api-select-wrapper" style="display: none !important;">
