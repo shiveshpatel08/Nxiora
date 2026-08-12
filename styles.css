@@ -1497,9 +1497,10 @@ code.inline-code {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 25;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    z-index: 950;
     opacity: 0;
     transition: opacity 0.3s ease;
 }
@@ -1764,7 +1765,7 @@ code.inline-code {
         min-width: 0 !important;
     }
 
-    /* When sidebar drawer is open on mobile */
+    /* When sidebar drawer is open on mobile: 100% Solid Opaque Dark Background */
     .sidebar.mobile-open {
         transform: translateX(0) !important;
         visibility: visible !important;
@@ -1773,9 +1774,18 @@ code.inline-code {
         width: 285px !important;
         min-width: 285px !important;
         max-width: 85vw !important;
-        background: linear-gradient(180deg, #0b0f19 0%, #060911 100%) !important;
-        border-right: 1px solid rgba(56, 239, 125, 0.25) !important;
-        box-shadow: 20px 0 50px rgba(0, 0, 0, 0.85) !important;
+        background: #090d16 !important;
+        background-color: #090d16 !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        border-right: 1px solid rgba(56, 239, 125, 0.3) !important;
+        box-shadow: 20px 0 60px rgba(0, 0, 0, 0.95) !important;
+    }
+
+    .sidebar.mobile-open * {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        filter: none !important;
     }
 
     /* Sidebar content: high contrast & clear text when mobile-open */
