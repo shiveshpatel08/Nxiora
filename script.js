@@ -445,8 +445,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const historySearchInput = document.getElementById('history-search-input');
     
     function autoCollapseSidebarOnMobile() {
-        if (window.innerWidth <= 768 && sidebar) {
-            sidebar.classList.add('collapsed');
+        if (window.innerWidth <= 768) {
+            closeMobileSidebar();
         }
     }
 
@@ -2301,6 +2301,23 @@ Strict Persona & Behavior Rules:
 
             showToast('Settings saved successfully! ✨', 'success');
             closeSettingsModal();
+        });
+    }
+
+    const clearAllChatsBtn = document.getElementById('clear-all-chats-btn');
+    if (clearAllChatsBtn) {
+        clearAllChatsBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all chat history?')) {
+                chats = [];
+                activeChatId = null;
+                saveChatsToStorage();
+                renderHistoryList();
+                messageList.innerHTML = '';
+                messageList.classList.add('hidden');
+                welcomeContainer.classList.remove('hidden');
+                showToast('All chat history cleared! 🗑️', 'info');
+                closeSettingsModal();
+            }
         });
     }
 });
