@@ -583,22 +583,29 @@ body.chat-visible .chat-section {
 
 /* Collapsed state */
 .sidebar.collapsed {
-    width: 60px;
-    padding: 20px 10px;
+    width: 68px;
+    padding: 20px 8px;
+    overflow: hidden;
 }
 
-.sidebar.collapsed > *:not(.sidebar-header) {
+.sidebar.collapsed .sidebar-title,
+.sidebar.collapsed .features-label,
+.sidebar.collapsed .history-label,
+.sidebar.collapsed .history-search-container,
+.sidebar.collapsed .profile-info {
     display: none !important;
 }
 
-.sidebar.collapsed .sidebar-header {
+.sidebar.collapsed .new-chat-btn span,
+.sidebar.collapsed .feature-item span,
+.sidebar.collapsed .history-text {
+    display: none !important;
+}
+
+.sidebar.collapsed .new-chat-btn,
+.sidebar.collapsed .feature-item {
     justify-content: center;
-    margin-bottom: 0;
-}
-
-.sidebar.collapsed .sidebar-logo,
-.sidebar.collapsed .sidebar-title {
-    display: none !important;
+    padding: 10px;
 }
 
 .sidebar-header {
