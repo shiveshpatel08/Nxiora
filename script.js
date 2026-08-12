@@ -276,26 +276,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // AUTO-LOGIN: Restore session on page load (Never logs out on refresh)
+    // AUTO-LOGIN: Restore session on page load
     // ==========================================
-    const isExplicitlyLoggedOut = localStorage.getItem('nxiora_user_logged_out') === 'true';
-    let existingSession = localStorage.getItem('forest_ai_current_user');
-
-    if (!isExplicitlyLoggedOut) {
-        if (!existingSession) {
-            const defaultUser = { name: 'Shivesh Patel', gmail: 'shivesh@nxiora.ai' };
-            localStorage.setItem('forest_ai_current_user', JSON.stringify(defaultUser));
-            existingSession = JSON.stringify(defaultUser);
-        }
+    const existingSession = localStorage.getItem('forest_ai_current_user');
+    if (existingSession) {
         try {
             const sessionUser = JSON.parse(existingSession);
-            if (sessionUser) {
+            if (sessionUser && sessionUser.gmail) {
+                // Valid session found — skip login screen
                 restoreSessionToChat();
             }
         } catch (e) {
-            const defaultUser = { name: 'Shivesh Patel', gmail: 'shivesh@nxiora.ai' };
-            localStorage.setItem('forest_ai_current_user', JSON.stringify(defaultUser));
-            restoreSessionToChat();
+            // Corrupted session — clear it
+            localStorage.removeItem('forest_ai_current_user');
         }
     }
 
@@ -305,47 +298,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-password').value;
 
-        if (!email) {
-            showToast('Please enter your email address.', 'error');
-            return;
-        }
-
         const submitBtn = loginForm.querySelector('.btn');
         const originalText = submitBtn.innerHTML;
         
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `Logging in... <span class="spinner"></span>`;
+        submitBtn.innerHTML = `${originalText} <span class="spinner"></span>`;
 
         setTimeout(() => {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
 
+            // Retrieve registered credentials from localStorage (fallback to admin account)
             const registeredUser = JSON.parse(localStorage.getItem('forest_ai_user'));
-            let targetUser = null;
+            const defaultUser = { name: 'Admin', gmail: 'admin@gmail.com', password: 'shivesh@321' };
+            const targetUser = registeredUser || defaultUser;
 
-            if (registeredUser && registeredUser.gmail && registeredUser.gmail.toLowerCase() === email.toLowerCase()) {
-                if (registeredUser.password && registeredUser.password !== password) {
-                    showToast('Incorrect password! Please try again.', 'error');
-                    return;
-                }
-                targetUser = registeredUser;
-            } else if (email.toLowerCase() === 'admin@gmail.com' && password === 'shivesh@321') {
-                targetUser = { name: 'Admin', gmail: 'admin@gmail.com', password: 'shivesh@321' };
+            if (email.toLowerCase() === targetUser.gmail.toLowerCase() && password === targetUser.password) {
+                // Save currently logged in user info
+                localStorage.setItem('forest_ai_current_user', JSON.stringify(targetUser));
+                loginForm.reset();
+                animateToChat();
             } else {
-                const nameFromEmail = email.split('@')[0] || 'User';
-                const formattedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
-                targetUser = { name: formattedName, gmail: email, password: password || '123456' };
+                showToast('Invalid credentials! Check Gmail or Password.', 'error');
             }
-
-            // Save logged in user session & clear logged-out flag
-            localStorage.removeItem('nxiora_user_logged_out');
-            localStorage.setItem('forest_ai_current_user', JSON.stringify(targetUser));
-            localStorage.setItem('forest_ai_user', JSON.stringify(targetUser));
-            
-            loginForm.reset();
-            showToast(`Welcome, ${targetUser.name}! ✨`, 'success');
-            animateToChat();
-        }, 500);
+        }, 1200);
     });
 
     // Password Strength Evaluator Logic
@@ -354,86 +330,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const strengthBar = document.getElementById('strength-bar');
     const strengthText = document.getElementById('strength-text');
 
-    if (signupPasswordInput) {
-        signupPasswordInput.addEventListener('input', () => {
-            const val = signupPasswordInput.value;
-            if (!val) {
-                if (strengthContainer) strengthContainer.classList.add('hidden');
-                return;
-            }
-            
-            if (strengthContainer) strengthContainer.classList.remove('hidden');
-            
-            let score = 0;
-            if (val.length >= 6) score++;
-            if (val.length >= 8) score++;
-            if (/[0-9]/.test(val)) score++;
-            if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++;
-            if (/[!@#$%^&*(),.?":{}|<>]/.test(val)) score++;
-            
-            let text = 'Weak';
-            let color = '#ef4444';
-            let width = '33%';
-            
-            if (score >= 5) {
-                text = 'Strong';
-                color = '#38ef7d';
-                width = '100%';
-            } else if (score >= 3) {
-                text = 'Medium';
-                color = '#ff9800';
-                width = '66%';
-            }
-            
-            if (strengthBar) {
-                strengthBar.style.width = width;
-                strengthBar.style.backgroundColor = color;
-            }
-            if (strengthText) {
-                strengthText.textContent = text;
-                strengthText.style.color = color;
-            }
-        });
-    }
+    signupPasswordInput.addEventListener('input', () => {
+        const val = signupPasswordInput.value;
+        if (!val) {
+            strengthContainer.classList.add('hidden');
+            return;
+        }
+        
+        strengthContainer.classList.remove('hidden');
+        
+        let score = 0;
+        if (val.length >= 6) score++;
+        if (val.length >= 8) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++;
+        if (/[!@#$%^&*(),.?":{}|<>]/.test(val)) score++;
+        
+        let text = 'Weak';
+        let color = '#ef4444';
+        let width = '33%';
+        
+        if (score >= 5) {
+            text = 'Strong';
+            color = '#38ef7d';
+            width = '100%';
+        } else if (score >= 3) {
+            text = 'Medium';
+            color = '#ff9800';
+            width = '66%';
+        }
+        
+        strengthBar.style.width = width;
+        strengthBar.style.backgroundColor = color;
+        strengthText.textContent = text;
+        strengthText.style.color = color;
+    });
 
     // Sign Up Form Submit Action
     signupForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const nameInput = document.getElementById('signup-name');
-        const emailInput = document.getElementById('signup-email');
-        const passwordInput = document.getElementById('signup-password');
-
-        const name = nameInput ? nameInput.value.trim() : '';
-        const gmail = emailInput ? emailInput.value.trim() : '';
-        const password = passwordInput ? passwordInput.value : '';
-
-        if (!gmail) {
-            showToast('Please enter your email.', 'error');
-            return;
-        }
+        const name = document.getElementById('signup-name').value.trim();
+        const gmail = document.getElementById('signup-email').value.trim();
+        const password = document.getElementById('signup-password').value;
 
         const submitBtn = signupForm.querySelector('.btn');
         const originalText = submitBtn.innerHTML;
 
+        if (password.length < 6) {
+            showToast('Password must be at least 6 characters.', 'error');
+            return;
+        }
+
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `Creating Account... <span class="spinner"></span>`;
+        submitBtn.innerHTML = `${originalText} <span class="spinner"></span>`;
 
         setTimeout(() => {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
 
-            const nameFromEmail = gmail.split('@')[0] || 'User';
-            const formattedName = name ? name : (nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1));
-            const user = { name: formattedName, gmail: gmail, password: password || '123456' };
-
-            localStorage.removeItem('nxiora_user_logged_out');
+            // Save new credentials to localStorage
+            const user = { name, gmail, password };
             localStorage.setItem('forest_ai_user', JSON.stringify(user));
-            localStorage.setItem('forest_ai_current_user', JSON.stringify(user));
 
-            showToast(`Welcome to Nxiora, ${user.name}! 🎉`, 'success');
+            showToast('Registration successful! Please login.', 'success');
             signupForm.reset();
-            animateToChat();
-        }, 500);
+            container.classList.remove('right-panel-active');
+        }, 1200);
     });
 
 
@@ -449,28 +411,35 @@ document.addEventListener('DOMContentLoaded', () => {
     let attachedFileContent = '';
     let attachedFileName = '';
 
-    // Collapsible Sidebar & Mobile Hamburger Controls
+    // Collapsible Sidebar & Hover Cursor Logic (Open on Left, Close on Right/Leave)
     const sidebar = document.getElementById('sidebar');
     const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
     const historySearchInput = document.getElementById('history-search-input');
     
     function autoCollapseSidebarOnMobile() {
         if (window.innerWidth <= 768 && sidebar) {
-            sidebar.classList.remove('mobile-open');
             sidebar.classList.add('collapsed');
-            if (sidebarBackdrop) sidebarBackdrop.classList.add('hidden');
-            document.body.classList.remove('sidebar-mobile-open');
         }
     }
 
+    function handleAutoSidebar() {
+        if (window.innerWidth <= 768 && sidebar) {
+            sidebar.classList.add('collapsed');
+        } else if (sidebar) {
+            sidebar.classList.add('collapsed');
+        }
+    }
+    window.addEventListener('resize', handleAutoSidebar);
+
     if (sidebar) {
-        // Desktop hover expand/collapse
+        // Keep open when mouse hovers over sidebar
         sidebar.addEventListener('mouseenter', () => {
             if (window.innerWidth > 768) {
                 sidebar.classList.remove('collapsed');
             }
         });
 
+        // Close sidebar when mouse leaves sidebar
         sidebar.addEventListener('mouseleave', () => {
             if (window.innerWidth > 768) {
                 sidebar.classList.add('collapsed');
@@ -478,19 +447,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Open sidebar when cursor moves near left edge (X <= 40px)
+    // Close sidebar when cursor moves right away from sidebar (X > 290px)
+    document.addEventListener('mousemove', (e) => {
+        if (window.innerWidth > 768 && sidebar) {
+            if (e.clientX <= 40) {
+                sidebar.classList.remove('collapsed');
+            } else if (!sidebar.classList.contains('collapsed') && e.clientX > 290) {
+                sidebar.classList.add('collapsed');
+            }
+        }
+    });
+
     if (sidebarToggleBtn) {
-        sidebarToggleBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
+        sidebarToggleBtn.addEventListener('click', () => {
             if (sidebar) {
-                if (window.innerWidth <= 768) {
-                    if (sidebar.classList.contains('mobile-open')) {
-                        closeMobileSidebar();
-                    } else {
-                        openMobileSidebar();
-                    }
-                } else {
-                    sidebar.classList.toggle('collapsed');
-                }
+                sidebar.classList.toggle('collapsed');
             }
         });
     }
@@ -618,9 +590,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Logout Action (Slide Back to Login)
     logoutBtn.addEventListener('click', () => {
-        // Mark explicit logout so refresh will stay on login until sign-in
+        // Clear persisted session so refresh won't auto-login
         localStorage.removeItem('forest_ai_current_user');
-        localStorage.setItem('nxiora_user_logged_out', 'true');
 
         document.body.classList.remove('chat-visible');
         document.body.classList.remove('chat-view');
@@ -992,14 +963,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
-
-        // 4. Message speak out loud button click
-        const speakMsgBtn = e.target.closest('.speak-msg-btn');
-        if (speakMsgBtn) {
-            const msgText = speakMsgBtn.msgText;
-            speakTextOutLoud(msgText);
-            return;
-        }
     });
 
     function appendMessageBubble(role, content) {
@@ -1052,15 +1015,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         actionsBar.appendChild(copyBtn);
         actionsBar.appendChild(shareBtn);
-
-        if (role !== 'user') {
-            const speakBtn = document.createElement('button');
-            speakBtn.className = 'msg-action-btn speak-msg-btn';
-            speakBtn.title = 'Listen to response';
-            speakBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
-            speakBtn.msgText = content;
-            actionsBar.appendChild(speakBtn);
-        }
 
         contentWrapper.appendChild(bubble);
         contentWrapper.appendChild(actionsBar);
@@ -1708,14 +1662,9 @@ You MUST adhere to these critical guidelines:
         liveSessionActive = true;
         liveMicMuted = false;
 
-        // Unblock audio playback for browser speech synthesis on direct user gesture
+        // Unblock audio playback for browser speech synthesis
         if (window.speechSynthesis) {
             window.speechSynthesis.resume();
-            try {
-                const dummyUtterance = new SpeechSynthesisUtterance('');
-                dummyUtterance.volume = 0;
-                window.speechSynthesis.speak(dummyUtterance);
-            } catch (e) {}
         }
 
         const micBtn = document.getElementById('live-mic-toggle-btn');
@@ -1747,98 +1696,42 @@ You MUST adhere to these critical guidelines:
         stopVoiceRecognition();
     }
 
-    let globalFemaleVoice = null;
-
-    function updateSpeechVoices() {
-        if (!window.speechSynthesis) return;
-        const voices = window.speechSynthesis.getVoices();
-        if (!voices || voices.length === 0) return;
-
-        // Priority for natural Hindi / Indian / English female voices
-        let v = voices.find(v => (v.lang.includes('hi') || v.name.includes('Swara') || v.name.includes('Heera') || v.name.includes('Google हिन्दी')) && (v.name.toLowerCase().includes('female') || v.name.includes('हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')));
-        
-        if (!v) {
-            v = voices.find(v => v.name.includes('Google UK English Female') 
-                              || v.name.includes('Google US English Female') 
-                              || v.name.includes('Google हिन्दी')
-                              || v.name.includes('Natural')
-                              || v.name.includes('Aria') 
-                              || v.name.includes('Zira') 
-                              || v.name.includes('Jenny') 
-                              || v.name.includes('Hazel') 
-                              || v.name.includes('Samantha') 
-                              || (v.name.toLowerCase().includes('female') && (v.lang.startsWith('en') || v.lang.startsWith('hi'))));
-        }
-        
-        if (!v) {
-            v = voices.find(v => v.name.toLowerCase().includes('female'));
-        }
-
-        if (!v) {
-            v = voices.find(v => v.lang.includes('hi') || v.lang.startsWith('en')) || voices[0];
-        }
-        
-        globalFemaleVoice = v;
-    }
-
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.onvoiceschanged = updateSpeechVoices;
-        updateSpeechVoices();
-    }
-
     function getFemaleVoice() {
-        updateSpeechVoices();
-        return globalFemaleVoice;
-    }
-
-    function cleanTextForSpeech(rawText) {
-        if (!rawText) return '';
-        return rawText
-            .replace(/!\[([^\]]*)\]\([^)]+\)/g, 'Image generated.') 
-            .replace(/\[video\]\([^)]+\)/gi, 'Video generated.') 
-            .replace(/```[\s\S]*?```/g, 'Code snippet.') 
-            .replace(/`([^`]+)`/g, '$1') 
-            .replace(/[*#_~>]/g, '') 
-            .replace(/https?:\/\/\S+/g, '') 
-            .trim();
-    }
-
-    function speakTextOutLoud(text) {
-        if (!window.speechSynthesis) {
-            showToast('Voice playback is not supported in this browser.', 'error');
-            return;
+        if (!window.speechSynthesis) return null;
+        const voices = window.speechSynthesis.getVoices();
+        
+        // Priority for natural Hindi / Indian / English female voices
+        let voice = voices.find(v => (v.lang.includes('hi') || v.name.includes('Google हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')) && (v.name.toLowerCase().includes('female') || v.name.includes('हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')));
+        
+        if (!voice) {
+            voice = voices.find(v => v.name.includes('Google UK English Female') 
+                                  || v.name.includes('Google US English Female') 
+                                  || v.name.includes('Google हिन्दी')
+                                  || v.name.includes('Natural')
+                                  || v.name.includes('Aria') 
+                                  || v.name.includes('Zira') 
+                                  || v.name.includes('Jenny') 
+                                  || v.name.includes('Hazel') 
+                                  || v.name.includes('Samantha') 
+                                  || (v.name.toLowerCase().includes('female') && (v.lang.startsWith('en') || v.lang.startsWith('hi'))));
+        }
+        
+        if (!voice) {
+            voice = voices.find(v => v.name.toLowerCase().includes('female'));
         }
 
-        const cleanText = cleanTextForSpeech(text);
-        if (!cleanText) return;
-
-        window.speechSynthesis.resume();
-        window.speechSynthesis.cancel();
-
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        const voice = getFemaleVoice();
-        if (voice) {
-            utterance.voice = voice;
-            utterance.lang = voice.lang || 'hi-IN';
-        } else {
-            utterance.lang = 'hi-IN';
+        if (!voice) {
+            voice = voices.find(v => v.lang.includes('hi') || v.lang.startsWith('en')) || voices[0];
         }
-
-        utterance.pitch = 1.15;
-        utterance.rate = 1.0;
-        utterance.volume = 1.0;
-
-        window.speechSynthesis.speak(utterance);
-        showToast('Speaking audio response... 🔊', 'info');
+        
+        return voice;
     }
 
     function speakResponse(text) {
         if (!window.speechSynthesis || !liveSessionActive) return;
-
-        const cleanText = cleanTextForSpeech(text);
-        if (!cleanText) return;
-
+        
         window.speechSynthesis.resume();
+        
         if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
             window.speechSynthesis.cancel();
         }
@@ -1846,11 +1739,15 @@ You MUST adhere to these critical guidelines:
         setTimeout(() => {
             if (!liveSessionActive) return;
 
-            speechUtterance = new SpeechSynthesisUtterance(cleanText);
+            speechUtterance = new SpeechSynthesisUtterance(text);
             const voice = getFemaleVoice();
             if (voice) {
                 speechUtterance.voice = voice;
-                speechUtterance.lang = voice.lang || 'hi-IN';
+                if (voice.lang && (voice.lang.includes('hi') || voice.lang.includes('IN'))) {
+                    speechUtterance.lang = voice.lang;
+                } else {
+                    speechUtterance.lang = 'hi-IN';
+                }
             } else {
                 speechUtterance.lang = 'hi-IN';
             }
@@ -1860,7 +1757,7 @@ You MUST adhere to these critical guidelines:
             speechUtterance.volume = 1.0;
 
             speechUtterance.onstart = () => {
-                console.log('Speech synthesis started speaking out loud:', cleanText);
+                console.log('Speech synthesis started speaking out loud:', text);
                 const container = document.getElementById('live-orb-container');
                 const waveBars = document.getElementById('live-wave-bars');
                 if (container) {
@@ -2047,7 +1944,6 @@ Strict Persona & Behavior Rules:
 
     // Bind Live Voice Control Buttons
     const liveBtn = document.getElementById('live-btn');
-    const liveChatInputBtn = document.getElementById('live-chat-input-btn');
     const liveWaveClose = document.getElementById('live-wave-close');
     const liveEndCallBtn = document.getElementById('live-end-call-btn');
     const liveMicToggleBtn = document.getElementById('live-mic-toggle-btn');
@@ -2055,9 +1951,6 @@ Strict Persona & Behavior Rules:
 
     if (liveBtn) {
         liveBtn.addEventListener('click', openLiveChatSession);
-    }
-    if (liveChatInputBtn) {
-        liveChatInputBtn.addEventListener('click', openLiveChatSession);
     }
     if (liveWaveClose) {
         liveWaveClose.addEventListener('click', closeLiveChatSession);
