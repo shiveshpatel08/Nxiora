@@ -305,31 +305,47 @@ document.addEventListener('DOMContentLoaded', () => {
         const email = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-password').value;
 
+        if (!email) {
+            showToast('Please enter your email address.', 'error');
+            return;
+        }
+
         const submitBtn = loginForm.querySelector('.btn');
         const originalText = submitBtn.innerHTML;
         
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `${originalText} <span class="spinner"></span>`;
+        submitBtn.innerHTML = `Logging in... <span class="spinner"></span>`;
 
         setTimeout(() => {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
 
-            // Retrieve registered credentials from localStorage (fallback to admin account)
             const registeredUser = JSON.parse(localStorage.getItem('forest_ai_user'));
-            const defaultUser = { name: 'Admin', gmail: 'admin@gmail.com', password: 'shivesh@321' };
-            const targetUser = registeredUser || defaultUser;
+            let targetUser = null;
 
-            if (email.toLowerCase() === targetUser.gmail.toLowerCase() && password === targetUser.password) {
-                // Clear logged out flag & save currently logged in user info
-                localStorage.removeItem('nxiora_user_logged_out');
-                localStorage.setItem('forest_ai_current_user', JSON.stringify(targetUser));
-                loginForm.reset();
-                animateToChat();
+            if (registeredUser && registeredUser.gmail && registeredUser.gmail.toLowerCase() === email.toLowerCase()) {
+                if (registeredUser.password && registeredUser.password !== password) {
+                    showToast('Incorrect password! Please try again.', 'error');
+                    return;
+                }
+                targetUser = registeredUser;
+            } else if (email.toLowerCase() === 'admin@gmail.com' && password === 'shivesh@321') {
+                targetUser = { name: 'Admin', gmail: 'admin@gmail.com', password: 'shivesh@321' };
             } else {
-                showToast('Invalid credentials! Check Gmail or Password.', 'error');
+                const nameFromEmail = email.split('@')[0] || 'User';
+                const formattedName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+                targetUser = { name: formattedName, gmail: email, password: password || '123456' };
             }
-        }, 1200);
+
+            // Save logged in user session & clear logged-out flag
+            localStorage.removeItem('nxiora_user_logged_out');
+            localStorage.setItem('forest_ai_current_user', JSON.stringify(targetUser));
+            localStorage.setItem('forest_ai_user', JSON.stringify(targetUser));
+            
+            loginForm.reset();
+            showToast(`Welcome, ${targetUser.name}! ✨`, 'success');
+            animateToChat();
+        }, 500);
     });
 
     // Password Strength Evaluator Logic
@@ -338,72 +354,86 @@ document.addEventListener('DOMContentLoaded', () => {
     const strengthBar = document.getElementById('strength-bar');
     const strengthText = document.getElementById('strength-text');
 
-    signupPasswordInput.addEventListener('input', () => {
-        const val = signupPasswordInput.value;
-        if (!val) {
-            strengthContainer.classList.add('hidden');
-            return;
-        }
-        
-        strengthContainer.classList.remove('hidden');
-        
-        let score = 0;
-        if (val.length >= 6) score++;
-        if (val.length >= 8) score++;
-        if (/[0-9]/.test(val)) score++;
-        if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++;
-        if (/[!@#$%^&*(),.?":{}|<>]/.test(val)) score++;
-        
-        let text = 'Weak';
-        let color = '#ef4444';
-        let width = '33%';
-        
-        if (score >= 5) {
-            text = 'Strong';
-            color = '#38ef7d';
-            width = '100%';
-        } else if (score >= 3) {
-            text = 'Medium';
-            color = '#ff9800';
-            width = '66%';
-        }
-        
-        strengthBar.style.width = width;
-        strengthBar.style.backgroundColor = color;
-        strengthText.textContent = text;
-        strengthText.style.color = color;
-    });
+    if (signupPasswordInput) {
+        signupPasswordInput.addEventListener('input', () => {
+            const val = signupPasswordInput.value;
+            if (!val) {
+                if (strengthContainer) strengthContainer.classList.add('hidden');
+                return;
+            }
+            
+            if (strengthContainer) strengthContainer.classList.remove('hidden');
+            
+            let score = 0;
+            if (val.length >= 6) score++;
+            if (val.length >= 8) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[a-z]/.test(val) && /[A-Z]/.test(val)) score++;
+            if (/[!@#$%^&*(),.?":{}|<>]/.test(val)) score++;
+            
+            let text = 'Weak';
+            let color = '#ef4444';
+            let width = '33%';
+            
+            if (score >= 5) {
+                text = 'Strong';
+                color = '#38ef7d';
+                width = '100%';
+            } else if (score >= 3) {
+                text = 'Medium';
+                color = '#ff9800';
+                width = '66%';
+            }
+            
+            if (strengthBar) {
+                strengthBar.style.width = width;
+                strengthBar.style.backgroundColor = color;
+            }
+            if (strengthText) {
+                strengthText.textContent = text;
+                strengthText.style.color = color;
+            }
+        });
+    }
 
     // Sign Up Form Submit Action
     signupForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const name = document.getElementById('signup-name').value.trim();
-        const gmail = document.getElementById('signup-email').value.trim();
-        const password = document.getElementById('signup-password').value;
+        const nameInput = document.getElementById('signup-name');
+        const emailInput = document.getElementById('signup-email');
+        const passwordInput = document.getElementById('signup-password');
+
+        const name = nameInput ? nameInput.value.trim() : '';
+        const gmail = emailInput ? emailInput.value.trim() : '';
+        const password = passwordInput ? passwordInput.value : '';
+
+        if (!gmail) {
+            showToast('Please enter your email.', 'error');
+            return;
+        }
 
         const submitBtn = signupForm.querySelector('.btn');
         const originalText = submitBtn.innerHTML;
 
-        if (password.length < 6) {
-            showToast('Password must be at least 6 characters.', 'error');
-            return;
-        }
-
         submitBtn.disabled = true;
-        submitBtn.innerHTML = `${originalText} <span class="spinner"></span>`;
+        submitBtn.innerHTML = `Creating Account... <span class="spinner"></span>`;
 
         setTimeout(() => {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
 
-            // Save new credentials to localStorage
-            const user = { name, gmail, password };
-            localStorage.setItem('forest_ai_user', JSON.stringify(user));
+            const nameFromEmail = gmail.split('@')[0] || 'User';
+            const formattedName = name ? name : (nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1));
+            const user = { name: formattedName, gmail: gmail, password: password || '123456' };
 
-            showToast('Registration successful! Please login.', 'success');
+            localStorage.removeItem('nxiora_user_logged_out');
+            localStorage.setItem('forest_ai_user', JSON.stringify(user));
+            localStorage.setItem('forest_ai_current_user', JSON.stringify(user));
+
+            showToast(`Welcome to Nxiora, ${user.name}! 🎉`, 'success');
             signupForm.reset();
-            container.classList.remove('right-panel-active');
-        }, 1200);
+            animateToChat();
+        }, 500);
     });
 
 
