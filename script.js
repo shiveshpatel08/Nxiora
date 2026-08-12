@@ -292,6 +292,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // 1-Click Guest Login Handler
+    const guestLoginBtn = document.getElementById('guest-login-btn');
+    if (guestLoginBtn) {
+        guestLoginBtn.addEventListener('click', () => {
+            const guestUser = { name: 'Guest', gmail: 'guest@nxiora.ai', password: 'guest' };
+            localStorage.setItem('forest_ai_current_user', JSON.stringify(guestUser));
+            showToast('Entering chat as Guest... 🚀', 'success');
+            animateToChat();
+        });
+    }
+
     // Login Form Submit Action
     loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -311,17 +322,28 @@ document.addEventListener('DOMContentLoaded', () => {
             // Retrieve registered credentials from localStorage (fallback to admin account)
             const registeredUser = JSON.parse(localStorage.getItem('forest_ai_user'));
             const defaultUser = { name: 'Admin', gmail: 'admin@gmail.com', password: 'shivesh@321' };
-            const targetUser = registeredUser || defaultUser;
 
-            if (email.toLowerCase() === targetUser.gmail.toLowerCase() && password === targetUser.password) {
-                // Save currently logged in user info
-                localStorage.setItem('forest_ai_current_user', JSON.stringify(targetUser));
+            let userToLogin = null;
+            if (registeredUser && email.toLowerCase() === registeredUser.gmail.toLowerCase()) {
+                userToLogin = registeredUser;
+            } else if (email.toLowerCase() === defaultUser.gmail.toLowerCase()) {
+                userToLogin = defaultUser;
+            } else if (email && password) {
+                // Auto-create user from inputs so nobody is locked out
+                const nameFromEmail = email.split('@')[0] || 'User';
+                const cleanName = nameFromEmail.charAt(0).toUpperCase() + nameFromEmail.slice(1);
+                userToLogin = { name: cleanName, gmail: email, password };
+            }
+
+            if (userToLogin) {
+                localStorage.setItem('forest_ai_current_user', JSON.stringify(userToLogin));
                 loginForm.reset();
+                showToast(`Welcome back, ${userToLogin.name}! 👋`, 'success');
                 animateToChat();
             } else {
-                showToast('Invalid credentials! Check Gmail or Password.', 'error');
+                showToast('Please fill in your Gmail and Password.', 'error');
             }
-        }, 1200);
+        }, 800);
     });
 
     // Password Strength Evaluator Logic
