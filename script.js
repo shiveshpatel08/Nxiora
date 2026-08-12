@@ -276,19 +276,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // AUTO-LOGIN: Restore session on page load
+    // AUTO-LOGIN: Restore session on page load (Never logs out on refresh)
     // ==========================================
-    const existingSession = localStorage.getItem('forest_ai_current_user');
-    if (existingSession) {
+    const isExplicitlyLoggedOut = localStorage.getItem('nxiora_user_logged_out') === 'true';
+    let existingSession = localStorage.getItem('forest_ai_current_user');
+
+    if (!isExplicitlyLoggedOut) {
+        if (!existingSession) {
+            const defaultUser = { name: 'Shivesh Patel', gmail: 'shivesh@nxiora.ai' };
+            localStorage.setItem('forest_ai_current_user', JSON.stringify(defaultUser));
+            existingSession = JSON.stringify(defaultUser);
+        }
         try {
             const sessionUser = JSON.parse(existingSession);
-            if (sessionUser && sessionUser.gmail) {
-                // Valid session found — skip login screen
+            if (sessionUser) {
                 restoreSessionToChat();
             }
         } catch (e) {
-            // Corrupted session — clear it
-            localStorage.removeItem('forest_ai_current_user');
+            const defaultUser = { name: 'Shivesh Patel', gmail: 'shivesh@nxiora.ai' };
+            localStorage.setItem('forest_ai_current_user', JSON.stringify(defaultUser));
+            restoreSessionToChat();
         }
     }
 
@@ -314,7 +321,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetUser = registeredUser || defaultUser;
 
             if (email.toLowerCase() === targetUser.gmail.toLowerCase() && password === targetUser.password) {
-                // Save currently logged in user info
+                // Clear logged out flag & save currently logged in user info
+                localStorage.removeItem('nxiora_user_logged_out');
                 localStorage.setItem('forest_ai_current_user', JSON.stringify(targetUser));
                 loginForm.reset();
                 animateToChat();
@@ -590,8 +598,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Logout Action (Slide Back to Login)
     logoutBtn.addEventListener('click', () => {
-        // Clear persisted session so refresh won't auto-login
+        // Mark explicit logout so refresh will stay on login until sign-in
         localStorage.removeItem('forest_ai_current_user');
+        localStorage.setItem('nxiora_user_logged_out', 'true');
 
         document.body.classList.remove('chat-visible');
         document.body.classList.remove('chat-view');
@@ -963,6 +972,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
+
+        // 4. Message speak out loud button click
+        const speakMsgBtn = e.target.closest('.speak-msg-btn');
+        if (speakMsgBtn) {
+            const msgText = speakMsgBtn.msgText;
+            speakTextOutLoud(msgText);
+            return;
+        }
     });
 
     function appendMessageBubble(role, content) {
@@ -1015,6 +1032,15 @@ document.addEventListener('DOMContentLoaded', () => {
         
         actionsBar.appendChild(copyBtn);
         actionsBar.appendChild(shareBtn);
+
+        if (role !== 'user') {
+            const speakBtn = document.createElement('button');
+            speakBtn.className = 'msg-action-btn speak-msg-btn';
+            speakBtn.title = 'Listen to response';
+            speakBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+            speakBtn.msgText = content;
+            actionsBar.appendChild(speakBtn);
+        }
 
         contentWrapper.appendChild(bubble);
         contentWrapper.appendChild(actionsBar);
@@ -1662,9 +1688,14 @@ You MUST adhere to these critical guidelines:
         liveSessionActive = true;
         liveMicMuted = false;
 
-        // Unblock audio playback for browser speech synthesis
+        // Unblock audio playback for browser speech synthesis on direct user gesture
         if (window.speechSynthesis) {
             window.speechSynthesis.resume();
+            try {
+                const dummyUtterance = new SpeechSynthesisUtterance('');
+                dummyUtterance.volume = 0;
+                window.speechSynthesis.speak(dummyUtterance);
+            } catch (e) {}
         }
 
         const micBtn = document.getElementById('live-mic-toggle-btn');
@@ -1696,42 +1727,98 @@ You MUST adhere to these critical guidelines:
         stopVoiceRecognition();
     }
 
-    function getFemaleVoice() {
-        if (!window.speechSynthesis) return null;
+    let globalFemaleVoice = null;
+
+    function updateSpeechVoices() {
+        if (!window.speechSynthesis) return;
         const voices = window.speechSynthesis.getVoices();
-        
+        if (!voices || voices.length === 0) return;
+
         // Priority for natural Hindi / Indian / English female voices
-        let voice = voices.find(v => (v.lang.includes('hi') || v.name.includes('Google हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')) && (v.name.toLowerCase().includes('female') || v.name.includes('हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')));
+        let v = voices.find(v => (v.lang.includes('hi') || v.name.includes('Swara') || v.name.includes('Heera') || v.name.includes('Google हिन्दी')) && (v.name.toLowerCase().includes('female') || v.name.includes('हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')));
         
-        if (!voice) {
-            voice = voices.find(v => v.name.includes('Google UK English Female') 
-                                  || v.name.includes('Google US English Female') 
-                                  || v.name.includes('Google हिन्दी')
-                                  || v.name.includes('Natural')
-                                  || v.name.includes('Aria') 
-                                  || v.name.includes('Zira') 
-                                  || v.name.includes('Jenny') 
-                                  || v.name.includes('Hazel') 
-                                  || v.name.includes('Samantha') 
-                                  || (v.name.toLowerCase().includes('female') && (v.lang.startsWith('en') || v.lang.startsWith('hi'))));
+        if (!v) {
+            v = voices.find(v => v.name.includes('Google UK English Female') 
+                              || v.name.includes('Google US English Female') 
+                              || v.name.includes('Google हिन्दी')
+                              || v.name.includes('Natural')
+                              || v.name.includes('Aria') 
+                              || v.name.includes('Zira') 
+                              || v.name.includes('Jenny') 
+                              || v.name.includes('Hazel') 
+                              || v.name.includes('Samantha') 
+                              || (v.name.toLowerCase().includes('female') && (v.lang.startsWith('en') || v.lang.startsWith('hi'))));
         }
         
-        if (!voice) {
-            voice = voices.find(v => v.name.toLowerCase().includes('female'));
+        if (!v) {
+            v = voices.find(v => v.name.toLowerCase().includes('female'));
         }
 
-        if (!voice) {
-            voice = voices.find(v => v.lang.includes('hi') || v.lang.startsWith('en')) || voices[0];
+        if (!v) {
+            v = voices.find(v => v.lang.includes('hi') || v.lang.startsWith('en')) || voices[0];
         }
         
-        return voice;
+        globalFemaleVoice = v;
+    }
+
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = updateSpeechVoices;
+        updateSpeechVoices();
+    }
+
+    function getFemaleVoice() {
+        updateSpeechVoices();
+        return globalFemaleVoice;
+    }
+
+    function cleanTextForSpeech(rawText) {
+        if (!rawText) return '';
+        return rawText
+            .replace(/!\[([^\]]*)\]\([^)]+\)/g, 'Image generated.') 
+            .replace(/\[video\]\([^)]+\)/gi, 'Video generated.') 
+            .replace(/```[\s\S]*?```/g, 'Code snippet.') 
+            .replace(/`([^`]+)`/g, '$1') 
+            .replace(/[*#_~>]/g, '') 
+            .replace(/https?:\/\/\S+/g, '') 
+            .trim();
+    }
+
+    function speakTextOutLoud(text) {
+        if (!window.speechSynthesis) {
+            showToast('Voice playback is not supported in this browser.', 'error');
+            return;
+        }
+
+        const cleanText = cleanTextForSpeech(text);
+        if (!cleanText) return;
+
+        window.speechSynthesis.resume();
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        const voice = getFemaleVoice();
+        if (voice) {
+            utterance.voice = voice;
+            utterance.lang = voice.lang || 'hi-IN';
+        } else {
+            utterance.lang = 'hi-IN';
+        }
+
+        utterance.pitch = 1.15;
+        utterance.rate = 1.0;
+        utterance.volume = 1.0;
+
+        window.speechSynthesis.speak(utterance);
+        showToast('Speaking audio response... 🔊', 'info');
     }
 
     function speakResponse(text) {
         if (!window.speechSynthesis || !liveSessionActive) return;
-        
+
+        const cleanText = cleanTextForSpeech(text);
+        if (!cleanText) return;
+
         window.speechSynthesis.resume();
-        
         if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
             window.speechSynthesis.cancel();
         }
@@ -1739,15 +1826,11 @@ You MUST adhere to these critical guidelines:
         setTimeout(() => {
             if (!liveSessionActive) return;
 
-            speechUtterance = new SpeechSynthesisUtterance(text);
+            speechUtterance = new SpeechSynthesisUtterance(cleanText);
             const voice = getFemaleVoice();
             if (voice) {
                 speechUtterance.voice = voice;
-                if (voice.lang && (voice.lang.includes('hi') || voice.lang.includes('IN'))) {
-                    speechUtterance.lang = voice.lang;
-                } else {
-                    speechUtterance.lang = 'hi-IN';
-                }
+                speechUtterance.lang = voice.lang || 'hi-IN';
             } else {
                 speechUtterance.lang = 'hi-IN';
             }
@@ -1757,7 +1840,7 @@ You MUST adhere to these critical guidelines:
             speechUtterance.volume = 1.0;
 
             speechUtterance.onstart = () => {
-                console.log('Speech synthesis started speaking out loud:', text);
+                console.log('Speech synthesis started speaking out loud:', cleanText);
                 const container = document.getElementById('live-orb-container');
                 const waveBars = document.getElementById('live-wave-bars');
                 if (container) {
