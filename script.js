@@ -985,6 +985,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             return;
         }
+
+        // 4. Message speak/read aloud button click
+        const speakMsgBtn = e.target.closest('.speak-msg-btn');
+        if (speakMsgBtn) {
+            const msgText = speakMsgBtn.msgText;
+            if (window.speechSynthesis) {
+                if (window.speechSynthesis.speaking) {
+                    window.speechSynthesis.cancel();
+                    speakMsgBtn.style.color = '';
+                    showToast('Voice stopped 🛑', 'info');
+                } else {
+                    speakText(msgText);
+                    speakMsgBtn.style.color = '#38ef7d';
+                    showToast('Reading response aloud... 🔊', 'info');
+                }
+            } else {
+                showToast('Speech synthesis not supported in this browser.', 'error');
+            }
+            return;
+        }
     });
 
     function appendMessageBubble(role, content) {
@@ -1037,6 +1057,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         actionsBar.appendChild(copyBtn);
         actionsBar.appendChild(shareBtn);
+
+        // Add Speak/Read Aloud button for AI messages
+        if (role !== 'user') {
+            const speakBtn = document.createElement('button');
+            speakBtn.className = 'msg-action-btn speak-msg-btn';
+            speakBtn.title = 'Listen to response';
+            speakBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+            speakBtn.msgText = content;
+            actionsBar.appendChild(speakBtn);
+        }
 
         contentWrapper.appendChild(bubble);
         contentWrapper.appendChild(actionsBar);
@@ -1718,40 +1748,90 @@ You MUST adhere to these critical guidelines:
         stopVoiceRecognition();
     }
 
-    function getFemaleVoice() {
+    function cleanTextForSpeech(rawText) {
+        if (!rawText) return '';
+        return rawText
+            .replace(/!\[.*?\]\(.*?\)/g, '')
+            .replace(/\[video\]\(.*?\)/g, '')
+            .replace(/\[.*?\]\(.*?\)/g, '')
+            .replace(/```[\s\S]*?```/g, 'Code block is available in chat.')
+            .replace(/`([^`]+)`/g, '$1')
+            .replace(/\*\*|\*|#|>|-/g, '')
+            .replace(/https?:\/\/\S+/g, '')
+            .trim();
+    }
+
+    function getNaturalVoice() {
         if (!window.speechSynthesis) return null;
         const voices = window.speechSynthesis.getVoices();
         
-        // Priority for natural Hindi / Indian / English female voices
-        let voice = voices.find(v => (v.lang.includes('hi') || v.name.includes('Google हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')) && (v.name.toLowerCase().includes('female') || v.name.includes('हिन्दी') || v.name.includes('Swara') || v.name.includes('Heera')));
+        // Priority for natural, crystal-clear Hindi / Indian / English voices
+        let voice = voices.find(v => 
+            v.name.includes('Google हिन्दी') || 
+            v.name.includes('Swara') || 
+            v.name.includes('Heera') || 
+            (v.lang.includes('hi') && v.name.includes('Natural'))
+        );
         
         if (!voice) {
-            voice = voices.find(v => v.name.includes('Google UK English Female') 
-                                  || v.name.includes('Google US English Female') 
-                                  || v.name.includes('Google हिन्दी')
-                                  || v.name.includes('Natural')
-                                  || v.name.includes('Aria') 
-                                  || v.name.includes('Zira') 
-                                  || v.name.includes('Jenny') 
-                                  || v.name.includes('Hazel') 
-                                  || v.name.includes('Samantha') 
-                                  || (v.name.toLowerCase().includes('female') && (v.lang.startsWith('en') || v.lang.startsWith('hi'))));
-        }
-        
-        if (!voice) {
-            voice = voices.find(v => v.name.toLowerCase().includes('female'));
+            voice = voices.find(v => 
+                v.lang.includes('hi') || 
+                v.lang.includes('hi-IN')
+            );
         }
 
         if (!voice) {
-            voice = voices.find(v => v.lang.includes('hi') || v.lang.startsWith('en')) || voices[0];
+            voice = voices.find(v => 
+                v.name.includes('Google UK English') || 
+                v.name.includes('Google US English') || 
+                v.name.includes('Natural') || 
+                v.name.includes('Aria') || 
+                v.name.includes('Jenny') || 
+                v.name.includes('Samantha') || 
+                v.lang.startsWith('en')
+            );
+        }
+
+        if (!voice && voices.length > 0) {
+            voice = voices[0];
         }
         
         return voice;
     }
 
+    function speakText(rawText) {
+        if (!window.speechSynthesis) return;
+        
+        const cleanText = cleanTextForSpeech(rawText);
+        if (!cleanText) return;
+
+        window.speechSynthesis.resume();
+        window.speechSynthesis.cancel();
+
+        setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance(cleanText);
+            const voice = getNaturalVoice();
+            if (voice) {
+                utterance.voice = voice;
+                utterance.lang = voice.lang || 'hi-IN';
+            } else {
+                utterance.lang = 'hi-IN';
+            }
+
+            utterance.pitch = 1.0;  // Natural human pitch
+            utterance.rate = 1.0;   // Clear speaking pace
+            utterance.volume = 1.0;
+
+            window.speechSynthesis.speak(utterance);
+        }, 50);
+    }
+
     function speakResponse(text) {
         if (!window.speechSynthesis || !liveSessionActive) return;
         
+        const cleanText = cleanTextForSpeech(text);
+        if (!cleanText) return;
+
         window.speechSynthesis.resume();
         
         if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
@@ -1761,25 +1841,21 @@ You MUST adhere to these critical guidelines:
         setTimeout(() => {
             if (!liveSessionActive) return;
 
-            speechUtterance = new SpeechSynthesisUtterance(text);
-            const voice = getFemaleVoice();
+            speechUtterance = new SpeechSynthesisUtterance(cleanText);
+            const voice = getNaturalVoice();
             if (voice) {
                 speechUtterance.voice = voice;
-                if (voice.lang && (voice.lang.includes('hi') || voice.lang.includes('IN'))) {
-                    speechUtterance.lang = voice.lang;
-                } else {
-                    speechUtterance.lang = 'hi-IN';
-                }
+                speechUtterance.lang = voice.lang || 'hi-IN';
             } else {
                 speechUtterance.lang = 'hi-IN';
             }
 
-            speechUtterance.pitch = 1.15; // Natural human female voice pitch
-            speechUtterance.rate = 1.0;
+            speechUtterance.pitch = 1.0; // Natural pitch
+            speechUtterance.rate = 0.98; // Human speaking cadence
             speechUtterance.volume = 1.0;
 
             speechUtterance.onstart = () => {
-                console.log('Speech synthesis started speaking out loud:', text);
+                console.log('Speech synthesis started speaking out loud:', cleanText);
                 const container = document.getElementById('live-orb-container');
                 const waveBars = document.getElementById('live-wave-bars');
                 if (container) {
