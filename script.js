@@ -419,35 +419,28 @@ document.addEventListener('DOMContentLoaded', () => {
     let attachedFileContent = '';
     let attachedFileName = '';
 
-    // Collapsible Sidebar & Hover Cursor Logic (Open on Left, Close on Right/Leave)
+    // Collapsible Sidebar & Mobile Hamburger Controls
     const sidebar = document.getElementById('sidebar');
     const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
     const historySearchInput = document.getElementById('history-search-input');
     
     function autoCollapseSidebarOnMobile() {
         if (window.innerWidth <= 768 && sidebar) {
+            sidebar.classList.remove('mobile-open');
             sidebar.classList.add('collapsed');
+            if (sidebarBackdrop) sidebarBackdrop.classList.add('hidden');
+            document.body.classList.remove('sidebar-mobile-open');
         }
     }
-
-    function handleAutoSidebar() {
-        if (window.innerWidth <= 768 && sidebar) {
-            sidebar.classList.add('collapsed');
-        } else if (sidebar) {
-            sidebar.classList.add('collapsed');
-        }
-    }
-    window.addEventListener('resize', handleAutoSidebar);
 
     if (sidebar) {
-        // Keep open when mouse hovers over sidebar
+        // Desktop hover expand/collapse
         sidebar.addEventListener('mouseenter', () => {
             if (window.innerWidth > 768) {
                 sidebar.classList.remove('collapsed');
             }
         });
 
-        // Close sidebar when mouse leaves sidebar
         sidebar.addEventListener('mouseleave', () => {
             if (window.innerWidth > 768) {
                 sidebar.classList.add('collapsed');
@@ -455,22 +448,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Open sidebar when cursor moves near left edge (X <= 40px)
-    // Close sidebar when cursor moves right away from sidebar (X > 290px)
-    document.addEventListener('mousemove', (e) => {
-        if (window.innerWidth > 768 && sidebar) {
-            if (e.clientX <= 40) {
-                sidebar.classList.remove('collapsed');
-            } else if (!sidebar.classList.contains('collapsed') && e.clientX > 290) {
-                sidebar.classList.add('collapsed');
-            }
-        }
-    });
-
     if (sidebarToggleBtn) {
-        sidebarToggleBtn.addEventListener('click', () => {
+        sidebarToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (sidebar) {
-                sidebar.classList.toggle('collapsed');
+                if (window.innerWidth <= 768) {
+                    if (sidebar.classList.contains('mobile-open')) {
+                        closeMobileSidebar();
+                    } else {
+                        openMobileSidebar();
+                    }
+                } else {
+                    sidebar.classList.toggle('collapsed');
+                }
             }
         });
     }
@@ -2027,6 +2017,7 @@ Strict Persona & Behavior Rules:
 
     // Bind Live Voice Control Buttons
     const liveBtn = document.getElementById('live-btn');
+    const liveChatInputBtn = document.getElementById('live-chat-input-btn');
     const liveWaveClose = document.getElementById('live-wave-close');
     const liveEndCallBtn = document.getElementById('live-end-call-btn');
     const liveMicToggleBtn = document.getElementById('live-mic-toggle-btn');
@@ -2034,6 +2025,9 @@ Strict Persona & Behavior Rules:
 
     if (liveBtn) {
         liveBtn.addEventListener('click', openLiveChatSession);
+    }
+    if (liveChatInputBtn) {
+        liveChatInputBtn.addEventListener('click', openLiveChatSession);
     }
     if (liveWaveClose) {
         liveWaveClose.addEventListener('click', closeLiveChatSession);
