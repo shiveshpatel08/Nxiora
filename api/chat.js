@@ -37,12 +37,19 @@ module.exports = async (req, res) => {
 
     let apiUrl = '';
     let apiKey = '';
-    let targetModel = model;
+    // Detect if payload contains multimodal image attachments
+    const hasVisionContent = Array.isArray(messages) && messages.some(m => {
+        if (!m || !m.content) return false;
+        if (Array.isArray(m.content)) {
+            return m.content.some(item => item && (item.type === 'image_url' || item.type === 'image'));
+        }
+        return false;
+    });
 
     if (providerName === 'nvidia') {
         apiUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
         apiKey = process.env.NVIDIA_API_KEY || FALLBACK_NVIDIA_KEY;
-        targetModel = targetModel || 'meta/llama-3.3-70b-instruct';
+        targetModel = hasVisionContent ? 'meta/llama-3.2-11b-vision-instruct' : (targetModel || 'meta/llama-3.3-70b-instruct');
     } else if (providerName === 'gemini' && process.env.GEMINI_API_KEY) {
         apiUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
         apiKey = process.env.GEMINI_API_KEY;
@@ -51,7 +58,11 @@ module.exports = async (req, res) => {
         // Default: Groq LPUs
         apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
         apiKey = process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY;
-        targetModel = (targetModel && !targetModel.includes('/')) ? targetModel : 'llama-3.3-70b-versatile';
+        if (hasVisionContent) {
+            targetModel = 'llama-3.2-11b-vision-preview';
+        } else {
+            targetModel = (targetModel && !targetModel.includes('/')) ? targetModel : 'llama-3.3-70b-versatile';
+        }
     }
 
     const shouldStream = stream !== false;
@@ -80,7 +91,7 @@ module.exports = async (req, res) => {
                     'Authorization': `Bearer ${process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY}`
                 },
                 body: JSON.stringify({
-                    model: 'llama-3.3-70b-versatile',
+                    model: hasVisionContent ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile',
                     messages: messages || [],
                     stream: shouldStream
                 })

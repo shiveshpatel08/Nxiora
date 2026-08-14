@@ -166,7 +166,14 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'gemini-1.5-pro', provider: 'gemini', tags: ['general', 'smart', 'reasoning'] }
     ];
 
-    function getCandidateModels(query) {
+    function getCandidateModels(query, hasImages = false) {
+        if (hasImages) {
+            return [
+                { id: 'llama-3.2-11b-vision-preview', provider: 'groq' },
+                { id: 'gemini-2.0-flash', provider: 'gemini' },
+                { id: 'meta/llama-3.2-11b-vision-instruct', provider: 'nvidia' }
+            ];
+        }
         let routedModel = null;
         try {
             const hasFiles = !!(typeof attachedFileContent !== 'undefined' && attachedFileContent);
@@ -1015,7 +1022,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function appendMessageBubble(role, content) {
+    function appendMessageBubble(role, content, attachments = []) {
         const row = document.createElement('div');
         row.className = `message-row ${role === 'user' ? 'user-message-row' : 'assistant-message-row'}`;
         
@@ -1032,6 +1039,28 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (role === 'user') {
             bubble.textContent = content;
+            if (attachments && attachments.length > 0) {
+                const attachContainer = document.createElement('div');
+                attachContainer.className = 'message-attachments-strip';
+                attachContainer.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;';
+                
+                attachments.forEach(att => {
+                    if (att.type === 'image' && att.dataUrl) {
+                        const img = document.createElement('img');
+                        img.src = att.dataUrl;
+                        img.alt = att.name || 'User Photo';
+                        img.style.cssText = 'max-width: 220px; max-height: 200px; border-radius: 10px; object-fit: cover; border: 1px solid rgba(56, 239, 125, 0.4); display: block; margin-bottom: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);';
+                        attachContainer.appendChild(img);
+                    } else if (att.name) {
+                        const badge = document.createElement('div');
+                        badge.className = 'file-attachment-badge';
+                        badge.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: rgba(56, 239, 125, 0.12); border-radius: 8px; font-size: 12px; border: 1px solid rgba(56, 239, 125, 0.3); color: #38ef7d; font-weight: 500;';
+                        badge.innerHTML = `<i class="fa-regular fa-file-lines"></i> <span>${escapeHtml(att.name)}</span>`;
+                        attachContainer.appendChild(badge);
+                    }
+                });
+                bubble.prepend(attachContainer);
+            }
         } else {
             bubble.innerHTML = parseMarkdown(content.trim());
             // Scan for generated images to auto-save to Gallery!
@@ -1122,8 +1151,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function handleSend() {
-        const messageText = chatInput.value.trim();
-        if (!messageText) return;
+        let currentUploads = [];
+        if (typeof pendingUploads !== 'undefined' && pendingUploads.length > 0) {
+            currentUploads = [...pendingUploads];
+            pendingUploads = [];
+        }
+
+        const previewStrip = document.getElementById('upload-preview-strip');
+        if (previewStrip) {
+            previewStrip.style.display = 'none';
+            previewStrip.innerHTML = '';
+        }
+
+        let messageText = chatInput.value.trim();
+
+        if (!messageText && currentUploads.length === 0) return;
+
+        if (!messageText && currentUploads.length > 0) {
+            const hasImgs = currentUploads.some(u => u.type === 'image');
+            messageText = hasImgs
+                ? "Please analyze this attached photo and describe what you see in detail."
+                : "Please analyze and summarize the attached file content.";
+        }
 
         // Clear input layout
         chatInput.value = '';
@@ -1136,16 +1185,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (voiceBtn) voiceBtn.style.display = 'flex';
         if (liveBtn) liveBtn.style.display = 'flex';
 
-        // Clear upload previews after send
-        if (typeof pendingUploads !== 'undefined') {
-            pendingUploads = [];
-        }
-        const previewStrip = document.getElementById('upload-preview-strip');
-        if (previewStrip) {
-            previewStrip.style.display = 'none';
-            previewStrip.innerHTML = '';
-        }
-
         const pillContainer = document.querySelector('.input-panel-pill');
         if (pillContainer) pillContainer.classList.remove('multiline');
 
@@ -1155,7 +1194,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!activeChatId) {
             activeChatId = 'chat_' + Date.now();
-            // Generate simple title from first message
             const title = messageText.length > 25 ? messageText.substring(0, 25) + '...' : messageText;
             chats.push({
                 id: activeChatId,
@@ -1164,16 +1202,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 model: 'gemini-2.5-flash',
                 timestamp: Date.now()
             });
-            
             messageList.innerHTML = '';
         }
 
         const activeChat = chats.find(c => c.id === activeChatId);
-        
-        // Append user message in session & UI
-        activeChat.messages.push({ role: 'user', content: messageText });
-        appendMessageBubble('user', messageText);
-        
+
+        // Process text / code file contents to append into prompt
+        let attachedFilesPromptText = '';
+        currentUploads.filter(u => u.type === 'text' && u.textContent).forEach(file => {
+            attachedFilesPromptText += `\n\n[Uploaded File: ${file.name}]\n\`\`\`\n${file.textContent}\n\`\`\``;
+        });
+
+        const fullPromptText = messageText + attachedFilesPromptText;
+        const uploadedImages = currentUploads.filter(u => u.type === 'image' && u.dataUrl);
+        const hasVisionImages = uploadedImages.length > 0;
+
+        // Construct session & payload user message content
+        let userMessageContent = fullPromptText;
+        if (hasVisionImages) {
+            userMessageContent = [
+                { type: 'text', text: fullPromptText }
+            ];
+            uploadedImages.forEach(img => {
+                userMessageContent.push({
+                    type: 'image_url',
+                    image_url: { url: img.dataUrl }
+                });
+            });
+        }
+
+        // Append user message in session & UI with attachments visual
+        activeChat.messages.push({ role: 'user', content: userMessageContent });
+        appendMessageBubble('user', messageText, currentUploads);
+
         // Auto Scroll
         chatBody.scrollTop = chatBody.scrollHeight;
 
@@ -1182,7 +1243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         aiBubble.innerHTML = '<span class="spinner" style="margin-left: 0;"></span> Preparing response...';
         chatBody.scrollTop = chatBody.scrollHeight;
 
-        // Check if Web Search is needed (starts with /search or contains 'search')
+        // Check if Web Search is needed
         let searchContext = '';
         const lowerText = messageText.toLowerCase();
         if (lowerText.includes('search') || lowerText.startsWith('/search')) {
@@ -1193,41 +1254,43 @@ document.addEventListener('DOMContentLoaded', () => {
             aiBubble.innerHTML = '<span class="spinner" style="margin-left: 0;"></span> Preparing response...';
         }
 
-        // Formulate user payload content: append search results context if available
-        const contextUserContent = searchContext 
-            ? `[Web Search Context:\n${searchContext}]\n\nUser Question: ${messageText}`
-            : messageText;
+        // Prepare context user content
+        let finalApiUserContent = userMessageContent;
+        if (searchContext) {
+            if (hasVisionImages) {
+                finalApiUserContent[0].text = `[Web Search Context:\n${searchContext}]\n\nUser Question: ${fullPromptText}`;
+            } else {
+                finalApiUserContent = `[Web Search Context:\n${searchContext}]\n\nUser Question: ${fullPromptText}`;
+            }
+        }
 
-        // Retrieve logged-in user details to personalize prompt context
         const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || { name: 'User' };
-        
-        // Prepend a system prompt forcing the AI to address the user by name and adding Shivesh Patel's creator info
+
         const systemPrompt = {
             role: 'system',
             content: `You are Nxiora, a helpful, intelligent, and friendly AI assistant. The user's name is ${currentUser.name}. You MUST address the user by their name (${currentUser.name}) naturally during the conversation, especially when greeting them.
             
 You MUST adhere to these critical guidelines:
 1. AI IDENTITY: You are Nxiora, an advanced AI assistant. If asked about your identity, gender, or nature, state clearly and warmly that you are Nxiora, an AI assistant.
-2. RESPONSE LENGTH RULE: By default, keep your answers concise, direct, and to-the-point — answer ONLY what the user asked. Do NOT add unnecessary fluff or unrequested background information. ONLY provide long, detailed explanations if the user explicitly asks for a long answer or detailed explanation (e.g. 'explain in detail', 'detail me batao', 'give a long answer').
-3. FRIENDLY & EMOJI-RICH TONE: Always respond in an extremely friendly, polite, and engaging manner. Use appropriate emojis throughout your message based on the emotion, tone, and topic of the conversation to make the interaction lively.
-4. ATTENTIVE COMPLIANCE: Listen carefully to whatever the user says or asks, and follow their instructions precisely.
-5. CRITICAL SECURITY - MODEL SECRECY: Under no circumstances should you ever disclose or mention the specific underlying AI models or providers you are running on (such as Llama, DeepSeek, Gemini, Qwen, Gemma, Mistral, Nvidia, Groq, etc.). If the user asks which model you are, who you are, or what backend you use, reply in a friendly manner that you are Nxiora, a custom AI assistant.
-6. CREATOR & OWNER INFO: The creator and owner of this application is Shivesh Patel. If asked who the owner, creator, developer, or who made this app, you MUST reply ONLY with his name (Shivesh Patel). Do not mention any other details (such as gender, age, location, etc.), simply reply with his name. Under no circumstances should you speak negatively about Shivesh Patel or share any of his private details.
-7. IMAGE GENERATION TOOL: You are equipped with a text-to-image generator tool. If the user asks you to generate, draw, paint, create, or show an image, you MUST respond by generating an image using this markdown link syntax: ![image](https://image.pollinations.ai/prompt/{description}?width=512&height=512&nologo=true) where {description} is a highly detailed, descriptive prompt for the image generator.`
+2. MULTIMODAL & VISION ANALYSIS: When the user provides images, photos, or file attachments, you MUST carefully inspect, read, analyze, and answer all questions about them in full detail.
+3. RESPONSE LENGTH RULE: By default, keep your answers concise, direct, and to-the-point — answer ONLY what the user asked. Do NOT add unnecessary fluff. ONLY provide long explanations if requested.
+4. FRIENDLY & EMOJI-RICH TONE: Always respond in an extremely friendly, polite, and engaging manner using appropriate emojis.
+5. ATTENTIVE COMPLIANCE: Listen carefully to whatever the user says or asks, and follow their instructions precisely.
+6. CRITICAL SECURITY - MODEL SECRECY: Under no circumstances should you ever disclose or mention specific underlying AI models (such as Llama, Gemini, Nvidia, Groq, etc.). State warm & friendly that you are Nxiora.
+7. CREATOR & OWNER INFO: The creator and owner of this application is Shivesh Patel. If asked, reply ONLY with his name (Shivesh Patel).
+8. IMAGE GENERATION TOOL: If asked to generate an image, use markdown syntax: ![image](https://image.pollinations.ai/prompt/{description}?width=512&height=512&nologo=true)`
         };
 
-        // Construct api payload messages list
         const apiMessages = [
             systemPrompt,
             ...activeChat.messages.slice(0, activeChat.messages.length - 1).map(m => ({
                 role: m.role,
                 content: m.content
             })),
-            { role: 'user', content: contextUserContent }
+            { role: 'user', content: finalApiUserContent }
         ];
 
-        // Determine candidate models based on query routing
-        const candidateModels = getCandidateModels(messageText);
+        const candidateModels = getCandidateModels(messageText, hasVisionImages);
         
         let selectedModel = '';
         let provider = '';
@@ -1441,12 +1504,17 @@ You MUST adhere to these critical guidelines:
                 img.src = item.dataUrl;
                 img.alt = item.name;
                 thumb.appendChild(img);
-            } else {
+            } else if (item.type === 'video') {
                 const vid = document.createElement('video');
                 vid.src = item.dataUrl;
                 vid.muted = true;
                 vid.playsInline = true;
                 thumb.appendChild(vid);
+            } else {
+                const textBadge = document.createElement('div');
+                textBadge.style.cssText = 'width: 44px; height: 44px; background: rgba(56, 239, 125, 0.15); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #38ef7d; font-size: 11px; text-align: center; padding: 2px; box-sizing: border-box; font-weight: bold; overflow: hidden; border: 1px solid rgba(56, 239, 125, 0.3);';
+                textBadge.innerHTML = `<i class="fa-regular fa-file-code" style="font-size: 14px; margin-bottom: 2px;"></i><span style="font-size: 8px; line-height: 1; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 40px;">${escapeHtml(item.name)}</span>`;
+                thumb.appendChild(textBadge);
             }
 
             // Remove (X) button
@@ -1475,53 +1543,63 @@ You MUST adhere to these critical guidelines:
             
             let uploadedCount = 0;
             let videoCount = 0;
+            let docCount = 0;
             let fileLoads = [];
             
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                const reader = new FileReader();
+                const isImage = file.type.startsWith('image/');
+                const isVideo = file.type.startsWith('video/');
                 
                 const loadPromise = new Promise((resolve) => {
-                    reader.onload = (event) => {
-                        const dataUrl = event.target.result;
-                        if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    if (isImage) {
+                        reader.onload = (event) => {
+                            const dataUrl = event.target.result;
                             galleryImages.unshift(dataUrl);
                             pendingUploads.push({ dataUrl, type: 'image', name: file.name });
                             uploadedCount++;
-                        } else if (file.type.startsWith('video/')) {
+                            resolve();
+                        };
+                        reader.readAsDataURL(file);
+                    } else if (isVideo) {
+                        reader.onload = (event) => {
+                            const dataUrl = event.target.result;
                             galleryVideos.unshift(dataUrl);
                             pendingUploads.push({ dataUrl, type: 'video', name: file.name });
                             videoCount++;
-                        }
-                        resolve();
-                    };
+                            resolve();
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        reader.onload = (event) => {
+                            const textContent = event.target.result;
+                            pendingUploads.push({ textContent, type: 'text', name: file.name });
+                            docCount++;
+                            resolve();
+                        };
+                        reader.readAsText(file);
+                    }
                 });
                 
-                reader.readAsDataURL(file);
                 fileLoads.push(loadPromise);
             }
             
             Promise.all(fileLoads).then(() => {
-                // Save to gallery localStorage
                 localStorage.setItem('nxiora_gallery_images', JSON.stringify(galleryImages));
                 localStorage.setItem('nxiora_gallery_videos', JSON.stringify(galleryVideos));
                 
-                // Update gallery view if open
                 if (activeGalleryType) {
                     renderGallery();
                 }
                 
-                // Show previews in input bar
                 renderUploadPreviews();
                 
                 let msg = '';
-                if (uploadedCount > 0 && videoCount > 0) {
-                     msg = `${uploadedCount} photo${uploadedCount > 1 ? 's' : ''} & ${videoCount} video${videoCount > 1 ? 's' : ''} attached! 📎`;
-                } else if (uploadedCount > 0) {
-                     msg = `${uploadedCount} photo${uploadedCount > 1 ? 's' : ''} attached! 🎨`;
-                } else if (videoCount > 0) {
-                     msg = `${videoCount} video${videoCount > 1 ? 's' : ''} attached! 🎬`;
-                }
+                if (uploadedCount > 0) msg = `${uploadedCount} photo${uploadedCount > 1 ? 's' : ''} attached! 🎨`;
+                else if (docCount > 0) msg = `${docCount} file${docCount > 1 ? 's' : ''} attached! 📄`;
+                else if (videoCount > 0) msg = `${videoCount} video${videoCount > 1 ? 's' : ''} attached! 🎬`;
+                
                 showToast(msg, 'success');
                 galleryFileInput.value = '';
             });
