@@ -57,7 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auto-close sidebar on mobile when a chat is selected
     document.addEventListener('click', (e) => {
-        if (window.innerWidth <= 768 && e.target.closest('.history-item')) {
+        if (e.target.closest('.history-item-actions')) return; // ignore action clicks (rename/delete)
+        if ((window.innerWidth <= 1024 || (sidebarEl && sidebarEl.classList.contains('mobile-open'))) && e.target.closest('.history-item')) {
             closeMobileSidebar();
         }
     });
@@ -445,15 +446,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const historySearchInput = document.getElementById('history-search-input');
     
     function autoCollapseSidebarOnMobile() {
-        if (window.innerWidth <= 768) {
+        if (sidebarEl && sidebarEl.classList.contains('mobile-open')) {
+            closeMobileSidebar();
+        } else if (window.innerWidth <= 1024) {
             closeMobileSidebar();
         }
     }
 
     function handleAutoSidebar() {
-        if (window.innerWidth <= 768 && sidebar) {
-            sidebar.classList.add('collapsed');
-        } else if (sidebar) {
+        if (window.innerWidth > 1024 && sidebar && !sidebar.classList.contains('mobile-open')) {
             sidebar.classList.add('collapsed');
         }
     }
@@ -618,6 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Logout Action (Slide Back to Login)
     logoutBtn.addEventListener('click', () => {
+        autoCollapseSidebarOnMobile();
         // Clear persisted session so refresh won't auto-login
         localStorage.removeItem('forest_ai_current_user');
 
@@ -2197,6 +2199,7 @@ Strict Persona & Behavior Rules:
     let tempAvatarDataUrl = null;
 
     function openSettingsModal() {
+        autoCollapseSidebarOnMobile();
         if (!settingsModal) return;
         
         const currentUser = JSON.parse(localStorage.getItem('forest_ai_current_user')) || { name: 'User Account', gmail: 'Groq Session' };
