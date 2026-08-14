@@ -35,74 +35,70 @@ module.exports = async (req, res) => {
     const FALLBACK_GROQ_KEY = process.env.GROQ_API_KEY || getFallbackGroqKey();
     const FALLBACK_NVIDIA_KEY = process.env.NVIDIA_API_KEY || getFallbackNvidiaKey();
 
-    let apiUrl = '';
-    let apiKey = '';
-    // Detect if payload contains multimodal image attachments
-    const hasVisionContent = Array.isArray(messages) && messages.some(m => {
-        if (!m || !m.content) return false;
-        if (Array.isArray(m.content)) {
-            return m.content.some(item => item && (item.type === 'image_url' || item.type === 'image'));
-        }
-        return false;
-    });
+    // Build resilient candidate endpoint list for backend auto-failover
+    const candidateEndpoints = [];
 
-    if (providerName === 'nvidia') {
-        apiUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
-        apiKey = process.env.NVIDIA_API_KEY || FALLBACK_NVIDIA_KEY;
-        targetModel = hasVisionContent ? 'meta/llama-3.2-11b-vision-instruct' : (targetModel || 'meta/llama-3.3-70b-instruct');
-    } else if (providerName === 'gemini' && process.env.GEMINI_API_KEY) {
-        apiUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-        apiKey = process.env.GEMINI_API_KEY;
-        targetModel = targetModel || 'gemini-2.0-flash';
+    if (hasVisionContent) {
+        // Vision candidate list: Groq 11B -> Groq 90B -> Nvidia Vision
+        candidateEndpoints.push(
+            { url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY, model: 'llama-3.2-11b-vision-preview' },
+            { url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY, model: 'llama-3.2-90b-vision-preview' },
+            { url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY || FALLBACK_NVIDIA_KEY, model: 'meta/llama-3.2-11b-vision-instruct' }
+        );
     } else {
-        // Default: Groq LPUs
-        apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-        apiKey = process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY;
-        if (hasVisionContent) {
-            targetModel = 'llama-3.2-11b-vision-preview';
+        if (providerName === 'nvidia') {
+            candidateEndpoints.push(
+                { url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY || FALLBACK_NVIDIA_KEY, model: model || 'meta/llama-3.3-70b-instruct' },
+                { url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY, model: 'llama-3.3-70b-versatile' }
+            );
         } else {
-            targetModel = (targetModel && !targetModel.includes('/')) ? targetModel : 'llama-3.3-70b-versatile';
+            candidateEndpoints.push(
+                { url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY, model: (model && !model.includes('/')) ? model : 'llama-3.3-70b-versatile' },
+                { url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY, model: 'llama-3.1-8b-instant' },
+                { url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY || FALLBACK_NVIDIA_KEY, model: 'meta/llama-3.3-70b-instruct' }
+            );
         }
     }
 
     const shouldStream = stream !== false;
+    let upstreamResponse = null;
+    let lastErrorMsg = '';
 
-    try {
-        let upstreamResponse = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: targetModel,
-                messages: messages || [],
-                stream: shouldStream
-            })
-        });
-
-        // If primary call fails and we were attempting non-Groq, auto-fallback to Groq LPU
-        if (!upstreamResponse.ok && providerName !== 'groq') {
-            console.warn(`Upstream call to ${providerName} failed. Falling back to Groq LPU...`);
-            upstreamResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    for (let i = 0; i < candidateEndpoints.length; i++) {
+        const ep = candidateEndpoints[i];
+        try {
+            const fetchRes = await fetch(ep.url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY}`
+                    'Authorization': `Bearer ${ep.key}`
                 },
                 body: JSON.stringify({
-                    model: hasVisionContent ? 'llama-3.2-11b-vision-preview' : 'llama-3.3-70b-versatile',
+                    model: ep.model,
                     messages: messages || [],
                     stream: shouldStream
                 })
             });
-        }
 
-        if (!upstreamResponse.ok) {
-            const errText = await upstreamResponse.text();
-            return res.status(upstreamResponse.status).send(errText);
+            if (fetchRes.ok) {
+                upstreamResponse = fetchRes;
+                break;
+            } else {
+                const errText = await fetchRes.text();
+                console.warn(`Backend candidate ${ep.model} (${ep.url}) returned ${fetchRes.status}: ${errText}`);
+                lastErrorMsg = errText;
+            }
+        } catch (err) {
+            console.warn(`Backend candidate ${ep.model} fetch error:`, err.message);
+            lastErrorMsg = err.message;
         }
+    }
 
+    if (!upstreamResponse || !upstreamResponse.ok) {
+        return res.status(500).json({ error: lastErrorMsg || 'All AI vision and text models failed to respond.' });
+    }
+
+    try {
         if (shouldStream) {
             res.setHeader('Content-Type', 'text/event-stream');
             res.setHeader('Cache-Control', 'no-cache');

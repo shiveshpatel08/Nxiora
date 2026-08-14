@@ -1268,17 +1268,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const systemPrompt = {
             role: 'system',
-            content: `You are Nxiora, a helpful, intelligent, and friendly AI assistant. The user's name is ${currentUser.name}. You MUST address the user by their name (${currentUser.name}) naturally during the conversation, especially when greeting them.
-            
-You MUST adhere to these critical guidelines:
-1. AI IDENTITY: You are Nxiora, an advanced AI assistant. If asked about your identity, gender, or nature, state clearly and warmly that you are Nxiora, an AI assistant.
-2. MULTIMODAL & VISION ANALYSIS: When the user provides images, photos, or file attachments, you MUST carefully inspect, read, analyze, and answer all questions about them in full detail.
-3. RESPONSE LENGTH RULE: By default, keep your answers concise, direct, and to-the-point — answer ONLY what the user asked. Do NOT add unnecessary fluff. ONLY provide long explanations if requested.
-4. FRIENDLY & EMOJI-RICH TONE: Always respond in an extremely friendly, polite, and engaging manner using appropriate emojis.
-5. ATTENTIVE COMPLIANCE: Listen carefully to whatever the user says or asks, and follow their instructions precisely.
-6. CRITICAL SECURITY - MODEL SECRECY: Under no circumstances should you ever disclose or mention specific underlying AI models (such as Llama, Gemini, Nvidia, Groq, etc.). State warm & friendly that you are Nxiora.
-7. CREATOR & OWNER INFO: The creator and owner of this application is Shivesh Patel. If asked, reply ONLY with his name (Shivesh Patel).
-8. IMAGE GENERATION TOOL: If asked to generate an image, use markdown syntax: ![image](https://image.pollinations.ai/prompt/{description}?width=512&height=512&nologo=true)`
+            content: `You are Nxiora, an exceptionally intelligent, friendly, and smart AI assistant. The user's name is ${currentUser.name}. Address ${currentUser.name} naturally when appropriate.
+
+CRITICAL BEHAVIOR & RESPONSE GUIDELINES:
+1. CONCISE, SMART & DIRECT ANSWERS: Answer ONLY what the user asked. Keep normal query responses short, smart, direct, and to-the-point. Do NOT add unnecessary introductions, filler text, or unrequested background info. ONLY provide long explanations if the user explicitly asks (e.g. 'explain in detail', 'detail me batao').
+2. MULTIMODAL VISION & FILE ANALYSIS: When the user provides photos, images, or attached files, inspect and analyze them with extreme precision. Answer the user's specific question about the photo/file directly and clearly.
+3. FRIENDLY & EMOJI-RICH TONE: Respond warmly with appropriate emojis.
+4. AI IDENTITY & MODEL SECRECY: State warmly that you are Nxiora, a custom AI assistant. Under no circumstances disclose underlying models or backend providers.
+5. CREATOR & OWNER INFO: Owner and creator is Shivesh Patel. If asked, reply ONLY with his name.
+6. IMAGE GENERATION TOOL: Use markdown link syntax ![image](https://image.pollinations.ai/prompt/{description}?width=512&height=512&nologo=true) if asked to generate/draw images.`
         };
 
         const apiMessages = [
@@ -1485,6 +1483,38 @@ You MUST adhere to these critical guidelines:
     // Store pending uploaded files for preview
     let pendingUploads = []; // Array of { dataUrl, type: 'image'|'video', name }
 
+    function compressImageFile(file, maxDimension = 1024, quality = 0.75) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > maxDimension || height > maxDimension) {
+                        if (width > height) {
+                            height = Math.round((height * maxDimension) / width);
+                            width = maxDimension;
+                        } else {
+                            width = Math.round((width * maxDimension) / height);
+                            height = maxDimension;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', quality));
+                };
+                img.onerror = () => resolve(event.target.result);
+                img.src = event.target.result;
+            };
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(file);
+        });
+    }
+
     function renderUploadPreviews() {
         if (!uploadPreviewStrip) return;
         if (pendingUploads.length === 0) {
@@ -1551,18 +1581,18 @@ You MUST adhere to these critical guidelines:
                 const isImage = file.type.startsWith('image/');
                 const isVideo = file.type.startsWith('video/');
                 
-                const loadPromise = new Promise((resolve) => {
-                    const reader = new FileReader();
-                    if (isImage) {
-                        reader.onload = (event) => {
-                            const dataUrl = event.target.result;
+                if (isImage) {
+                    const loadPromise = compressImageFile(file, 1024, 0.75).then((dataUrl) => {
+                        if (dataUrl) {
                             galleryImages.unshift(dataUrl);
                             pendingUploads.push({ dataUrl, type: 'image', name: file.name });
                             uploadedCount++;
-                            resolve();
-                        };
-                        reader.readAsDataURL(file);
-                    } else if (isVideo) {
+                        }
+                    });
+                    fileLoads.push(loadPromise);
+                } else if (isVideo) {
+                    const loadPromise = new Promise((resolve) => {
+                        const reader = new FileReader();
                         reader.onload = (event) => {
                             const dataUrl = event.target.result;
                             galleryVideos.unshift(dataUrl);
@@ -1571,7 +1601,11 @@ You MUST adhere to these critical guidelines:
                             resolve();
                         };
                         reader.readAsDataURL(file);
-                    } else {
+                    });
+                    fileLoads.push(loadPromise);
+                } else {
+                    const loadPromise = new Promise((resolve) => {
+                        const reader = new FileReader();
                         reader.onload = (event) => {
                             const textContent = event.target.result;
                             pendingUploads.push({ textContent, type: 'text', name: file.name });
@@ -1579,10 +1613,9 @@ You MUST adhere to these critical guidelines:
                             resolve();
                         };
                         reader.readAsText(file);
-                    }
-                });
-                
-                fileLoads.push(loadPromise);
+                    });
+                    fileLoads.push(loadPromise);
+                }
             }
             
             Promise.all(fileLoads).then(() => {
