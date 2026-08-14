@@ -1738,8 +1738,7 @@ code.inline-code {
     }
 
     /* Sidebar becomes a fixed off-canvas drawer on mobile */
-    .sidebar,
-    .sidebar.collapsed {
+    .sidebar {
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
@@ -1749,7 +1748,6 @@ code.inline-code {
         min-width: 285px !important;
         max-width: 85vw !important;
         z-index: 1000 !important;
-        transform: translateX(-100%) !important;
         transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s ease !important;
         padding: 20px 16px !important;
         box-shadow: none !important;
@@ -1758,11 +1756,10 @@ code.inline-code {
     }
 
     .sidebar:not(.mobile-open) {
+        transform: translateX(-100%) !important;
         visibility: hidden !important;
         pointer-events: none !important;
         opacity: 0 !important;
-        width: 0 !important;
-        min-width: 0 !important;
     }
 
     /* When sidebar drawer is open on mobile: 100% Solid Opaque Dark Background */

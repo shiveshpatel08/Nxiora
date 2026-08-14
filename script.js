@@ -32,13 +32,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (mobileHamburger) {
-        mobileHamburger.addEventListener('click', (e) => {
-            e.stopPropagation();
+        const toggleSidebar = (e) => {
+            if (e) {
+                e.stopPropagation();
+            }
             if (sidebarEl && sidebarEl.classList.contains('mobile-open')) {
                 closeMobileSidebar();
             } else {
                 openMobileSidebar();
             }
+        };
+        mobileHamburger.addEventListener('click', toggleSidebar);
+        mobileHamburger.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            toggleSidebar(e);
         });
     }
 
@@ -2235,7 +2242,7 @@ Strict Persona & Behavior Rules:
                 voiceBtnPill.style.color = '#3b82f6';
                 if (chatInput) {
                     originalInputPlaceholder = chatInput.placeholder || 'Ask anything';
-                    chatInput.placeholder = 'Listening...';
+                    chatInput.placeholder = 'Listening... Speak now 🎙️';
                 }
                 showToast('Listening... Speak now 🎙️', 'success');
             };
@@ -2259,6 +2266,12 @@ Strict Persona & Behavior Rules:
                 if (chatInput) {
                     chatInput.placeholder = originalInputPlaceholder || 'Ask anything';
                 }
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    showToast('Microphone permission denied. Please allow mic access in browser settings 🎙️', 'error');
+                } else if (event.error !== 'no-speech') {
+                    showToast(`Opening Live Voice mode...`, 'info');
+                    openLiveChatSession();
+                }
             };
 
             pillRecognition.onend = () => {
@@ -2270,20 +2283,29 @@ Strict Persona & Behavior Rules:
                 }
             };
 
-            voiceBtnPill.addEventListener('click', () => {
+            const handleVoiceClick = (e) => {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
                 if (isPillListening) {
-                    pillRecognition.stop();
+                    try { pillRecognition.stop(); } catch (err) {}
                 } else {
                     try {
                         pillRecognition.start();
                     } catch (e) {
                         console.error('Recognition start error:', e);
+                        openLiveChatSession();
                     }
                 }
-            });
+            };
+
+            voiceBtnPill.addEventListener('click', handleVoiceClick);
         } else {
-            voiceBtnPill.addEventListener('click', () => {
-                showToast('Speech Recognition is not supported in this browser.', 'error');
+            voiceBtnPill.addEventListener('click', (e) => {
+                e.preventDefault();
+                showToast('Opening Live Voice mode...', 'info');
+                openLiveChatSession();
             });
         }
     }
