@@ -1544,6 +1544,7 @@ You MUST adhere to these critical guidelines:
     const galleryClearBtn = document.getElementById('gallery-clear-btn');
 
     function openGallery(type) {
+        autoCollapseSidebarOnMobile();
         activeGalleryType = type;
         galleryPanel.classList.remove('hidden');
         chatBody.classList.add('hidden');
@@ -1716,6 +1717,7 @@ You MUST adhere to these critical guidelines:
     }
 
     function openLiveChatSession() {
+        autoCollapseSidebarOnMobile();
         const overlay = document.getElementById('live-wave-overlay');
         if (!overlay) return;
         
