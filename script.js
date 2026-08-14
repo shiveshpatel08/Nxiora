@@ -1304,10 +1304,6 @@ CRITICAL INSTRUCTION COMPLIANCE & BEHAVIOR GUIDELINES:
             
             console.log(`Routing query to model: ${selectedModel} via ${provider} (Attempt ${attempt + 1}/${candidateModels.length})`);
             
-            if (attempt > 0) {
-                showToast(`Primary model unavailable. Auto-switching to ${selectedModel}...`, 'warning');
-            }
-            
             try {
                 const response = await executeChatFetch({
                     provider: provider,
