@@ -35,6 +35,15 @@ module.exports = async (req, res) => {
     const FALLBACK_GROQ_KEY = process.env.GROQ_API_KEY || getFallbackGroqKey();
     const FALLBACK_NVIDIA_KEY = process.env.NVIDIA_API_KEY || getFallbackNvidiaKey();
 
+    // Check if payload contains any image/vision input
+    const hasVisionContent = Array.isArray(messages) && messages.some(m => {
+        if (!m || !m.content) return false;
+        if (Array.isArray(m.content)) {
+            return m.content.some(c => c && (c.type === 'image_url' || c.image_url));
+        }
+        return false;
+    });
+
     // Build resilient candidate endpoint list for backend auto-failover
     const candidateEndpoints = [];
 
@@ -50,6 +59,16 @@ module.exports = async (req, res) => {
             candidateEndpoints.push(
                 { url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: process.env.NVIDIA_API_KEY || FALLBACK_NVIDIA_KEY, model: model || 'meta/llama-3.3-70b-instruct' },
                 { url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY, model: 'llama-3.3-70b-versatile' }
+            );
+        } else if (providerName === 'gemini') {
+            if (process.env.GEMINI_API_KEY) {
+                candidateEndpoints.push(
+                    { url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', key: process.env.GEMINI_API_KEY, model: model || 'gemini-2.0-flash' }
+                );
+            }
+            candidateEndpoints.push(
+                { url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY, model: 'llama-3.3-70b-versatile' },
+                { url: 'https://api.groq.com/openai/v1/chat/completions', key: process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY, model: 'llama-3.1-8b-instant' }
             );
         } else {
             candidateEndpoints.push(
@@ -108,7 +127,7 @@ module.exports = async (req, res) => {
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                res.write(value);
+                res.write(Buffer.from(value));
             }
             return res.end();
         } else {
